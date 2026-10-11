@@ -13,9 +13,9 @@ When we change service names, update configuration, or modify how `node_modules`
 
 If things act weird, your first step should be to purge the volumes. We have added specific Make commands for this.
 
-*   **`make clean-frontend`**:
+*   **`make cleanv`**:
     *   **Use when**: Nuxt is acting up, or you changed `nuxt.config.ts` and it's not picking up, or `node_modules` seem broken.
-    *   **What it does**: Deletes ONLY the `.nuxt`, `.output`, and frontend `node_modules` volumes.
+    *   **What it does**: Deletes ONLY the `.nuxt`, `.output`, and frontend/auth `node_modules` volumes. (`make down` also runs this.)
     *   **Safety**: ✅ SAFE. It does NOT touch your Database.
 
 *   **`make fclean`** (Full Clean):
@@ -27,4 +27,4 @@ If things act weird, your first step should be to purge the volumes. We have add
 
 If you see `EACCES` or permission denied errors, it's usually because files created inside the container (by `root`) are not editable by you (uid `1000` or `501`).
 
-*   **Fix**: Run `make getuser` or just `make up` (which runs `getuser` automatically). This sets your local UID/GID in the `.env` file, and the containers use this to map permissions correctly.
+*   **Fix**: Add `UID=<output of id -u>` and `GID=<output of id -g>` to `srcs/.env`, then rebuild with `make dev`. The dev images (`docker-compose-dev.yml`) use these to map permissions correctly; they default to 1000. (The automatic `make getuser` step is currently disabled in the Makefile.)

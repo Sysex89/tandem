@@ -46,3 +46,5 @@ grafana-prometheus-review.md
 .DS_Store
 .pnpm-store
 *.png
+
+CLAUDE.md

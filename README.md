@@ -18,7 +18,7 @@ A modular open-source personal knowledge management system with built-in real-ti
 
 ### Setup
 
-1. **Environment variables** — Create `srcs/.env` with the following variables (the Makefile will auto-populate `UID` and `GID`):
+1. **Environment variables** — Create `srcs/.env` with the following variables (optionally add `UID`/`GID` to match your host user for `make dev`; they default to 1000):
 
 ```
 DB_USER=<postgres superuser>
@@ -29,13 +29,13 @@ AUTH_DB_NAME=<auth service db name>
 POSTGRES_ADDR=postgres
 POSTGRES_PORT=5432
 GITHUB_CLIENT_ID=<your GitHub OAuth app client ID>
-GITHUB_CALLBACK_URL=http://localhost:8080/api/auth/github/callback
+GITHUB_CALLBACK_URL=https://localhost:8443/api/auth/github/callback
 AUTH_PORT=3000
 NOTES_ADDR=http://notes:3003
 NOTES_PORT=3003
 FRONTEND_ADDR=http://frontend:3000
 FRONTEND_PORT=3000
-WEBSITE_URL=http://localhost:8080
+WEBSITE_URL=https://localhost:8443
 ```
 
 2. **Secrets** — Copy the example secrets directory and fill in real values (one value per file):
@@ -51,15 +51,17 @@ The following secret files must be populated: `auth_db_password`, `github_client
 ```bash
 make up        # Build all images and start in detached mode
 make live      # Build and start in foreground (logs stream to terminal)
-make down      # Stop all containers
+make down      # Stop all containers and remove node_modules / frontend build cache volumes
 make logs      # Follow logs (optionally: make logs service=auth)
 make clean     # Stop containers and remove images
-make cleanv    # clean + remove node_modules and frontend build cache volumes
+make cleanv    # Remove node_modules and frontend build cache volumes (keeps databases)
 make fclean    # Destructive: removes everything including database volumes
 make re        # clean + rebuild
+make dev       # Dev mode: bind-mounted frontend/auth source with hot reload
+make rebuild service=<name>  # Rebuild and restart a single service
 ```
 
-The application is accessible at `http://localhost:8080`. Grafana dashboards are at `http://localhost:3000`.
+The application is accessible at `https://localhost:8443` (self-signed certificate — accept the browser warning). Grafana dashboards are at `https://localhost:8443/grafana/`.
 
 ## **III. Resources**
 
