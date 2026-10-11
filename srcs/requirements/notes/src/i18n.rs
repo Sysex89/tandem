@@ -47,18 +47,19 @@ impl I18n {
 	// locale is expected to be normalized lower-case, e.g. "de-de", "de", "en-uk"
 	pub fn t(&self, locale: &str, key: &str) -> String {
 		// 1) exact match: "de-de"
-		// 2) language-only fallback: "de-de" -> "de"
+		// 2) same language: "de" or "de-at" -> the "de-*" bundle ("ar-sa" -> "ar")
 		// 3) default locale bundle
 		// 4) key itself
 		let locale_norm = locale.trim().to_ascii_lowercase();
+		let lang = locale_norm.split('-').next().unwrap_or_default();
 		let resolved_bundle = self
 			.bundles
 			.get(&locale_norm)
 			.or_else(|| {
-				locale_norm
-					.split('-')
-					.next()
-					.and_then(|lang| self.bundles.get(lang))
+				self.bundles
+					.iter()
+					.find(|(tag, _)| tag.split('-').next() == Some(lang))
+					.map(|(_, bundle)| bundle)
 			})
 			.or_else(|| self.bundles.get(self.default_locale.as_ref()));
 		let Some(bundle) = resolved_bundle else {
@@ -75,5 +76,53 @@ impl I18n {
 	}
 	pub fn default_locale(&self) -> &str {
 		&self.default_locale
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::I18n;
+
+	const LOCALES: [&str; 8] = [
+		"en-uk", "de-de", "es-es", "ie-ie", "el-gr", "tr-tr", "ru-ru", "ar",
+	];
+
+	fn keys(ftl: &str) -> Vec<&str> {
+		ftl.lines()
+			.filter_map(|l| l.split_once(" = ").map(|(k, _)| k.trim()))
+			.collect()
+	}
+
+	#[test]
+	fn every_locale_translates_every_message() {
+		let i18n = I18n::new();
+		for key in keys(include_str!("langs/en-UK/main.ftl")) {
+			let english = i18n.t("en-uk", key);
+			for locale in LOCALES {
+				let text = i18n.t(locale, key);
+				assert_ne!(text, key, "{locale} is missing {key}");
+				if locale != "en-uk" {
+					assert_ne!(text, english, "{locale} falls back to English for {key}");
+				}
+				assert!(
+					text.starts_with(char::is_alphanumeric),
+					"{locale} {key} starts with stray punctuation: {text:?}"
+				);
+			}
+		}
+	}
+
+	#[test]
+	fn locale_resolution_falls_back_by_language_then_to_english() {
+		let i18n = I18n::new();
+		assert_eq!(i18n.t("DE-de", "note-not-found"), "Notiz nicht gefunden");
+		assert_eq!(i18n.t("de", "note-not-found"), "Notiz nicht gefunden");
+		assert_eq!(i18n.t("de-AT", "note-not-found"), "Notiz nicht gefunden");
+		assert_eq!(
+			i18n.t("ar-SA", "note-not-found"),
+			i18n.t("ar", "note-not-found")
+		);
+		assert_eq!(i18n.t("fr-FR", "note-not-found"), "Note not found");
+		assert_eq!(i18n.t("en-uk", "no-such-key"), "no-such-key");
 	}
 }
