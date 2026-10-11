@@ -2,7 +2,8 @@
 # Deploys the hosted demo: copies the production compose file and nginx config to
 # the server, generates its .env and secrets on first run (they never leave the
 # server), pulls the images built by the "Images" workflow, starts the stack,
-# adds the site to the server's Caddy if it is missing, and seeds alice and bob.
+# adds the site to the server's Caddy if it is missing, installs the nightly
+# reset (reset.sh) and seeds alice and bob.
 #
 #   make deploy                      # latest images
 #   TANDEM_TAG=<commit sha> make deploy
@@ -21,7 +22,7 @@ TAG=${TANDEM_TAG:-latest}
 
 echo "Copying the stack to $DIR..."
 ssh "$DEPLOY_HOST" "install -d -m 700 $DIR $DIR/secrets"
-rsync -az docker-compose.yml nginx.conf "$DEPLOY_HOST:$DIR/"
+rsync -az docker-compose.yml nginx.conf reset.sh ../scripts/demo-seed.sh "$DEPLOY_HOST:$DIR/"
 
 echo "Starting tandem ($TAG)..."
 ssh "$DEPLOY_HOST" DOMAIN="$DOMAIN" TAG="$TAG" DIR="$DIR" CADDY_DIR="$CADDY_DIR" bash -s <<-'REMOTE'
@@ -47,9 +48,12 @@ ssh "$DEPLOY_HOST" DOMAIN="$DOMAIN" TAG="$TAG" DIR="$DIR" CADDY_DIR="$CADDY_DIR"
 	[ -s secrets/github_client_secret ] || printf demo-not-configured > secrets/github_client_secret
 	# readable inside the containers (non-root users); the 700 directory keeps them private on the host
 	chmod 644 secrets/*
+	# recorded so later commands (and the nightly reset) keep this version
+	sed -i '/^TANDEM_TAG=/d' .env
+	echo "TANDEM_TAG=$TAG" >> .env
 
-	TANDEM_TAG=$TAG docker compose pull -q
-	TANDEM_TAG=$TAG docker compose up -d --remove-orphans
+	docker compose pull -q
+	docker compose up -d --remove-orphans
 	docker image prune -f >/dev/null
 
 	# Route the domain to tandem's nginx through Caddy, which handles the certificate.
@@ -64,6 +68,10 @@ ssh "$DEPLOY_HOST" DOMAIN="$DOMAIN" TAG="$TAG" DIR="$DIR" CADDY_DIR="$CADDY_DIR"
 		docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 		echo "Added $DOMAIN to Caddy"
 	fi
+
+	# Nightly reset at 04:00 server time: visitors' accounts and notes are wiped.
+	echo "0 4 * * * root $DIR/reset.sh >> /var/log/tandem-reset.log 2>&1" > /etc/cron.d/tandem-reset
+	chmod 644 /etc/cron.d/tandem-reset
 REMOTE
 
 if [ -z "$(dig +short "$DOMAIN" 2>/dev/null)" ]; then

@@ -29,9 +29,15 @@ make deploy                        # latest images
 TANDEM_TAG=<commit sha> make deploy  # a specific build, e.g. to roll back
 ```
 
-`deploy/deploy.sh` copies the compose file and nginx config to `/opt/tandem`, generates `.env` and `secrets/` there on the first run (they never leave the server), pulls and starts the stack, appends a site block to the Caddyfile if the domain is not in it yet (validated before reloading; the previous file is kept as `Caddyfile.bak`), and seeds the `alice` / `bob` demo accounts. Re-running it is safe.
+`deploy/deploy.sh` copies the compose file and nginx config to `/opt/tandem`, generates `.env` and `secrets/` there on the first run (they never leave the server), pulls and starts the stack, appends a site block to the Caddyfile if the domain is not in it yet (validated before reloading; the previous file is kept as `Caddyfile.bak`), installs the nightly reset, and seeds the `alice` / `bob` demo accounts. Re-running it is safe.
 
 Wait for the *Images* workflow to finish after pushing before deploying, or `latest` is still the previous build.
+
+The deployed tag is recorded as `TANDEM_TAG` in the server's `.env`, so plain `docker compose` commands there (and the nightly reset) keep that version.
+
+## Nightly reset
+
+Registration is open, so visitors' accounts and notes would pile up. `deploy/reset.sh` runs at 04:00 UTC from `/etc/cron.d/tandem-reset`: it drops the database volume (`docker compose down -v`), starts the stack again and re-seeds alice, bob and their shared note, with about 30 s of downtime. Recreating the volume, rather than deleting rows, can't miss a table in either database and also clears the editor's in-memory rooms. Output goes to `/var/log/tandem-reset.log`; to reset by hand, run `/opt/tandem/reset.sh` on the server.
 
 ## Operate
 
