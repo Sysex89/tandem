@@ -1,4 +1,9 @@
-# Tandem
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="DOCS/img/logo-dark.gif">
+    <img src="DOCS/img/logo-light.gif" alt="Tandem" width="383">
+  </picture>
+</h1>
 
 [![CI](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml/badge.svg)](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml)
 

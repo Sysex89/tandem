@@ -1,10 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect x="4" y="3" width="24" height="26" rx="4" fill="#fafaf9" stroke="#a8a29e" stroke-width="1.2"/>
-  <g stroke="#d6d3d1" stroke-width="1.6" stroke-linecap="round">
-    <path d="M9 10 H23"/><path d="M9 15 H19"/><path d="M9 20 H23"/><path d="M9 25 H16"/>
-  </g>
-  <rect x="13" y="9" width="6" height="3.5" rx="1" fill="#547a5c"/>
-  <path d="M13 12 V18.5" stroke="#547a5c" stroke-width="1.6" stroke-linecap="round"/>
-  <rect x="21" y="14" width="6" height="3.5" rx="1" fill="#d97706"/>
-  <path d="M21 17 V23.5" stroke="#d97706" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- the logo's first letter and first writer: a bold T and a green collaborator cursor -->
+  <rect width="32" height="32" rx="6" fill="#fafaf9"/>
+  <path d="M4 6 H21 V11 H15.2 V27 H9.8 V11 H4 Z" fill="#292524"/>
+  <rect x="24" y="8" width="2.4" height="20" fill="#547a5c"/>
+  <rect x="24" y="4" width="6" height="5" rx="1.4" fill="#547a5c"/>
 </svg>
