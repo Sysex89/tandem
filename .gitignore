@@ -52,3 +52,4 @@ CLAUDE.md
 
 # Database dumps from scripts/upgrade-postgres.sh (contain password hashes)
 srcs/backups/
+LICENSE
