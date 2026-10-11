@@ -45,7 +45,8 @@ updates:
       - dependency-name: node
         update-types: [version-update:semver-major]
       # A major Postgres version cannot open the previous one's data files; upgrading
-      # existing volumes needs pg_upgrade or a dump and restore, so it is done by hand.
+      # needs a new volume and a dump and restore (see scripts/upgrade-postgres.sh),
+      # so it is done by hand.
       - dependency-name: postgres
         update-types: [version-update:semver-major]
 

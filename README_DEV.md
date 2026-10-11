@@ -41,3 +41,13 @@ docker exec -i postgres psql -U "$DB_USER" -d "$DB_NAME" \
   -c "GRANT pg_monitor TO monitoring;"
 make up
 ```
+
+### 4. Upgrading from Postgres 16 to 18
+
+Installations created before the upgrade keep their data in the `mycelium_db` volume (Postgres 16), which Postgres 18 cannot open. `make up`, `make demo` and `make dev` refuse to start until it is migrated:
+
+```bash
+make upgrade-postgres
+```
+
+It stops the stack, dumps the old database with a temporary Postgres 16 container, restores the dump into the new `tandem_pg18` volume with Postgres 18, and compares the row count of every table before and after. The old volume is only read, so it stays as a backup (roll back by pointing `postgres_data` in the compose files at `mycelium_db` and the image at `postgres:16-alpine`). The dump is kept in `srcs/backups/` (gitignored; it contains password hashes). Once you are happy: `docker volume rm mycelium_db`.

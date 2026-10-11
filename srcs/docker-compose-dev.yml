@@ -133,7 +133,8 @@ services:
       - auth_db_password
       - monitoring_db_password
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18 keeps its data in /var/lib/postgresql/18/docker and expects the volume here
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost -p 5432"]
       interval: 5s
@@ -213,10 +214,12 @@ volumes:
   frontend_output_hidden: # Persistent volume for frontend output
   frontend_manual_node_modules:  # Persistent volume for frontend dependencies
   auth_node_modules:      # Persistent volume for auth dependencies
-  # Volume names predate the rename to Tandem. Renaming a volume creates a new, empty
-  # one, so they are kept to leave existing installations' data attached.
+  # One volume per Postgres major version: data files cannot be opened by a different
+  # major, so `make upgrade-postgres` dumps the old volume (mycelium_db, Postgres 16)
+  # and restores it here, leaving the old one untouched as a backup.
   postgres_data:
-    name: mycelium_db
+    name: tandem_pg18
+  # Kept from before the rename to Tandem: renaming a volume creates a new, empty one.
   prometheus_data:
     name: mycelium_prometheus
   grafana_data:

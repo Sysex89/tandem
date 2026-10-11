@@ -23,7 +23,7 @@ jobs:
     # notes API tests: #[sqlx::test] creates a throwaway database per test
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_PASSWORD: ci-password
         ports: ["5432:5432"]
@@ -54,7 +54,7 @@ jobs:
         working-directory: srcs/requirements/auth
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: auth
           POSTGRES_PASSWORD: ci-password

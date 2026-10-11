@@ -64,7 +64,7 @@ Before the test, the same 50-person room delivered only 36 % of keystrokes, up t
 | --- | --- |
 | Frontend | Nuxt 4, Vue 3, Pinia, Tailwind CSS, PrimeVue (Volt), TipTap, Yjs |
 | Services | Rust (Axum, sqlx, yrs), TypeScript (Fastify 5, Drizzle ORM) |
-| Data | PostgreSQL 16 |
+| Data | PostgreSQL 18 |
 | Infra | Docker Compose, nginx, Prometheus, Grafana, nginx/Postgres exporters |
 
 ## Running locally

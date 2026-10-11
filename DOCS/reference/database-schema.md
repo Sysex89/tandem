@@ -1,6 +1,6 @@
 # Database schema
 
-Two logical databases in one PostgreSQL 16 instance. User IDs cross database boundaries without foreign keys, so cleanup on account deletion is done explicitly by the auth service (it calls the notes service).
+Two logical databases in one PostgreSQL 18 instance. User IDs cross database boundaries without foreign keys, so cleanup on account deletion is done explicitly by the auth service (it calls the notes service).
 
 ## Auth database
 

@@ -49,3 +49,6 @@ grafana-prometheus-review.md
 
 CLAUDE.md
 !DOCS/img/*.png
+
+# Database dumps from scripts/upgrade-postgres.sh (contain password hashes)
+srcs/backups/

@@ -1,6 +1,6 @@
 # Learn Postgres Initialization 🐘
 
-This container is the **Source of Truth** for all data in our application. It is built on top of the official `postgres:16-alpine` image but includes a custom initialization process to support our microservices architecture (Auth Service + Notes Service).
+This container is the **Source of Truth** for all data in our application. It is built on top of the official `postgres:18-alpine` image but includes a custom initialization process to support our microservices architecture (Auth Service + Notes Service).
 
 ---
 
@@ -48,16 +48,16 @@ The main database's tables (`notes`, `share`, `note_states`) used to be created 
 
 ## 3. Data Persistence (Why Init Only Runs Once)
 
-Postgres stores its actual data in `/var/lib/postgresql/data`.
-In `docker-compose.yml`, we mount a volume (`postgres_data`) to this path.
+Postgres 18 stores its actual data in `/var/lib/postgresql/18/docker`.
+In `docker-compose.yml`, we mount a volume (`postgres_data`, named `tandem_pg18`) at `/var/lib/postgresql`.
 
 **The Golden Rule:**
-> Initialization scripts (`init/`) ONLY run if the directory `/var/lib/postgresql/data` is **EMPTY**.
+> Initialization scripts (`init/`) ONLY run if the data directory is **EMPTY**.
 
 If you restart the container, your data is safe, and the scripts will **NOT** run again (to prevent overwriting data).
 
 **💥 How to "Reset" the Database:**
 If you change a script in `init/` and want to see the changes (main-database schema changes don't need this: add a migration in `notes/migrations/` instead):
 1.  Stop the containers: `docker compose down`
-2.  **Delete the volume**: `docker volume rm srcs_postgres_data` (This wipes all data!)
+2.  **Delete the volume**: `docker volume rm tandem_pg18` (This wipes all data!)
 3.  Restart: `docker compose up --build`
