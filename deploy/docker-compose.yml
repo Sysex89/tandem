@@ -1,0 +1,111 @@
+# Production stack for the hosted demo. Runs the app services only (no Grafana,
+# Prometheus or exporters, to fit a 1 GB server) from images built by the
+# "Images" workflow and pushed to GHCR, so the server never compiles anything.
+#
+# TLS is terminated by a Caddy container that already runs on the server: nginx
+# publishes no ports and joins Caddy's network instead, where Caddy reaches it as
+# tandem-nginx:80. See DOCS/howto/deploy-the-demo.md.
+#
+# Lives on the server in /opt/tandem next to .env, secrets/ and nginx.conf.
+name: tandem
+
+x-defaults: &defaults
+  restart: unless-stopped
+  networks: [tandem]
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+
+services:
+  frontend:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-frontend:${TANDEM_TAG:-latest}
+    environment:
+      NOTES_ADDR: http://notes:3003
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+    depends_on: [auth]
+
+  notes:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-notes:${TANDEM_TAG:-latest}
+    environment: &db
+      DB_HOST: postgres
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  editor:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-editor:${TANDEM_TAG:-latest}
+    environment: *db
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  auth:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-auth:${TANDEM_TAG:-latest}
+    volumes:
+      - ./secrets/auth_db_password:/run/secrets/auth_db_password:ro
+      - ./secrets/github_client_secret:/run/secrets/github_client_secret:ro
+      - ./secrets/session_secret_key:/run/secrets/session_secret_key:ro
+    environment:
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CALLBACK_URL: ${WEBSITE_URL}/api/auth/login/github/callback
+      WEBSITE_URL: ${WEBSITE_URL}
+      AUTH_DB_USER: auth
+      AUTH_DB_NAME: auth
+      POSTGRES_ADDR: postgres
+      HOME: /tmp
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  nginx:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-nginx:${TANDEM_TAG:-latest}
+    volumes:
+      # plain HTTP behind Caddy instead of the image's self-signed HTTPS config
+      - ./nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+    networks:
+      tandem:
+      caddy:
+        aliases: [tandem-nginx]
+    depends_on: [frontend, auth, notes, editor]
+
+  postgres:
+    <<: *defaults
+    image: ghcr.io/sysex89/tandem-postgres:${TANDEM_TAG:-latest}
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      AUTH_DB_USER: auth
+      AUTH_DB_NAME: auth
+    secrets: [auth_db_password, monitoring_db_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres_data:
+    name: tandem_pg18
+
+secrets:
+  auth_db_password:
+    file: ./secrets/auth_db_password
+  monitoring_db_password:
+    file: ./secrets/monitoring_db_password
+
+networks:
+  tandem:
+  caddy:
+    name: caddy_default
+    external: true

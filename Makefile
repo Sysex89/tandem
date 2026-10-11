@@ -90,6 +90,11 @@ test-notes:
 load:
 	cd tests/load && pnpm install --frozen-lockfile && node collab-load.mjs --clients 2,10,25,50
 
+# Hosted demo: pulls the GHCR images on the server named in deploy/.env.deploy
+# (see DOCS/howto/deploy-the-demo.md).
+deploy:
+	@./deploy/deploy.sh
+
 dev: check-db
 	docker compose -f srcs/docker-compose-dev.yml up -d --build $(FLAGS)
 
@@ -103,4 +108,4 @@ logs:
 getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
 
-.PHONY: all check-db upgrade-postgres up live down clean cleanv fclean wipe re demo e2e test-notes load dev rebuild logs getlogs
+.PHONY: all check-db upgrade-postgres up live down clean cleanv fclean wipe re demo e2e test-notes load deploy dev rebuild logs getlogs

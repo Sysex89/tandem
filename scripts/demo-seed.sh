@@ -41,7 +41,7 @@ fi
 
 cat <<EOF
 
-Demo ready at $BASE (accept the self-signed certificate)
+Demo ready at $BASE
   alice / $PASSWORD   owns "Project kickoff"
   bob   / $PASSWORD   can edit it (Notes > Shared with me)
 Log in as each in two different browsers to see live collaboration.

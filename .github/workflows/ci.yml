@@ -111,6 +111,9 @@ jobs:
           docker build -q -t ci-nginx srcs/requirements/nginx
           # grafana is proxied without a variable, so nginx resolves it at startup.
           docker run --rm --add-host grafana:127.0.0.1 ci-nginx nginx -t
+          # the hosted demo's config, mounted over the image's in production
+          docker run --rm -v "$PWD/deploy/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro" ci-nginx nginx -t
+      - run: docker compose -f deploy/docker-compose.yml config --quiet
 
   e2e:
     name: End-to-end (full stack)
