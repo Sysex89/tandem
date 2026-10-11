@@ -68,7 +68,7 @@ jobs:
       - run: pnpm test --run
 
   frontend:
-    name: Frontend (build)
+    name: Frontend (typecheck + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -80,6 +80,7 @@ jobs:
           node-version: 20
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
       - run: pnpm build
 
   infra:
@@ -103,11 +104,30 @@ jobs:
     needs: [infra]
     steps:
       - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      # exposes the cache token that the type=gha cache backend needs
+      - uses: crazy-max/ghaction-github-runtime@v3
+      - name: Build the slow images with a per-service layer cache
+        run: |
+          for s in auth frontend notes editor; do
+            docker buildx build --load -t "$s" \
+              --cache-from "type=gha,scope=$s" \
+              --cache-to "type=gha,scope=$s,mode=max" \
+              "srcs/requirements/$s"
+          done
       - name: Start the demo stack
         run: |
           ./scripts/demo-setup.sh
-          docker compose -f srcs/docker-compose.yml up -d --build
+          docker compose -f srcs/docker-compose.yml up -d
           ./scripts/demo-seed.sh
+      - name: postgres-exporter reads Postgres as the monitoring role
+        run: |
+          for i in $(seq 1 15); do
+            docker run --rm --network srcs_transcendence curlimages/curl -s http://postgres-exporter:9187/metrics \
+              | grep -q '^pg_up 1' && exit 0
+            sleep 2
+          done
+          exit 1
       - uses: actions/setup-node@v5
         with:
           node-version: 20

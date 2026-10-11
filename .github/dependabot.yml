@@ -1,0 +1,38 @@
+version: 2
+
+# Weekly checks; minor and patch bumps are grouped into one PR per ecosystem,
+# major bumps arrive as individual PRs.
+updates:
+  - package-ecosystem: cargo
+    directories: ["/srcs/requirements/notes", "/srcs/requirements/editor"]
+    schedule: { interval: weekly }
+    groups:
+      rust-minor-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: npm # also handles pnpm lockfiles
+    directories: ["/srcs/requirements/auth", "/srcs/requirements/frontend", "/tests/e2e"]
+    schedule: { interval: weekly }
+    groups:
+      js-minor-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: docker
+    directories:
+      - /srcs/requirements/auth
+      - /srcs/requirements/editor
+      - /srcs/requirements/frontend
+      - /srcs/requirements/grafana
+      - /srcs/requirements/nginx
+      - /srcs/requirements/nginx-exporter
+      - /srcs/requirements/notes
+      - /srcs/requirements/postgres
+      - /srcs/requirements/postgres-exporter
+      - /srcs/requirements/prometheus
+    schedule: { interval: weekly }
+    groups:
+      docker-minor-patch: { update-types: [minor, patch] }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
