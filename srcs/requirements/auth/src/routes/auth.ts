@@ -45,6 +45,13 @@ async function createUserAndAccount(db: any, user: schema.NewUser, account: Omit
 	});
 }
 
+// Postgres unique_violation, possibly wrapped by Drizzle. Happens when two
+// registrations for the same name or email race past the existence checks.
+function isUniqueViolation(err: unknown): boolean {
+	const e = err as { code?: string; cause?: { code?: string } };
+	return e?.code === "23505" || e?.cause?.code === "23505";
+}
+
 /**
  * Helper: Find a user by email or login name.
  * Encapsulates the OR logic for identity checks.
@@ -215,6 +222,10 @@ export const authRoutes: FastifyPluginAsyncTypebox = async (server) => {
 			await createSession(request, reply, server.db, newUser.id);
 			return reply.send({ success: true });
 		} catch (err) {
+			if (isUniqueViolation(err)) {
+				authRegisterTotal.labels("conflict_race").inc();
+				return reply.status(409).send({ error: "Username or email already taken." });
+			}
 			server.log.error(err); // Manual logging becasue WE catch it not fastify. custom err message
 			authRegisterTotal.labels("error").inc();
 			return reply.status(500).send({ error: "Failed to create user account. Please try again later." });

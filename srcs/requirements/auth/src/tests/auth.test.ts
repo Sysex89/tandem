@@ -37,7 +37,7 @@ describe("Auth Routes (Integration)", () => {
 
 		server = await buildServer(config);
 		// Pre-flight cleanup: Ensure test user doesn't exist from a previous crash
-		await server.db.execute(sql`DELETE FROM users WHERE email = 'bob@example.com'`);
+		await server.db.execute(sql`DELETE FROM users WHERE email IN ('bob@example.com', 'race@example.com')`);
 	});
 
 	// Note: Proper teardown happens in the final afterAll block below
@@ -262,10 +262,23 @@ describe("Auth Routes (Integration)", () => {
 		expect(response.statusCode).toBe(401);
 	});
 
+	it("should return 409, not 500, when the same user registers concurrently", async () => {
+		const register = () =>
+			server.inject({
+				method: "POST",
+				url: "/register",
+				payload: { loginName: "testuser_race", email: "race@example.com", password: "securePassword123!" },
+			});
+		const statuses = (await Promise.all([register(), register(), register()])).map((r) => r.statusCode);
+
+		expect(statuses.filter((s) => s === 200)).toHaveLength(1);
+		expect(statuses.filter((s) => s === 409)).toHaveLength(2);
+	});
+
 	// Cleanup: Delete the test user so the test is repeatable
 	afterAll(async () => {
 		// We can access the db directly via the decorator we made!
-		await server.db.execute(sql`DELETE FROM users WHERE email = 'bob@example.com'`);
+		await server.db.execute(sql`DELETE FROM users WHERE email IN ('bob@example.com', 'race@example.com')`);
 		await server.close(); // Close the pool after cleanup
 	});
 });
