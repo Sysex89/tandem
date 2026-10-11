@@ -66,5 +66,9 @@ ssh "$DEPLOY_HOST" DOMAIN="$DOMAIN" TAG="$TAG" DIR="$DIR" CADDY_DIR="$CADDY_DIR"
 	fi
 REMOTE
 
+if [ -z "$(dig +short "$DOMAIN" 2>/dev/null)" ]; then
+	echo "$DOMAIN does not resolve yet: add its DNS record, then run make deploy again to seed the demo users."
+	exit 0
+fi
 echo "Seeding the demo users..."
 BASE="https://$DOMAIN" ../scripts/demo-seed.sh
