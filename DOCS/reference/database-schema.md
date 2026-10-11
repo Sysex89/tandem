@@ -14,11 +14,11 @@ Owned by the `auth` service. Schema in `srcs/requirements/auth/src/db/schema.ts`
 
 ## Main database
 
-Shared by `notes` (metadata, sharing) and `editor` (document state). Schema in `srcs/requirements/postgres/init/02-init.sql`; it only runs when the `mycelium_db` volume is first created.
+Shared by `notes` (metadata, sharing) and `editor` (document state). The schema is owned by the notes service as sqlx migrations in `srcs/requirements/notes/migrations/`, applied at notes startup (on fresh and existing volumes alike) and recorded in `_sqlx_migrations`.
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| `notes` | `id` (UUID PK), `title` (varchar 255, default 'Untitled'), `owner_id` (UUID), `owner_url` (varchar 255), `created_at`, `updated_at` | Note metadata; `owner_url` is the slug used by `/api/notes/u/{slug}` |
+| `notes` | `id` (UUID PK), `title` (varchar 255, default 'Untitled'), `owner_id` (UUID), `owner_url` (varchar 255), `created_at`, `updated_at` | Note metadata; `owner_url` is the slug used by `/api/notes/u/{slug}`, unique per owner (`notes_owner_slug_key`) |
 | `note_states` | `note_id` (UUID PK, FK → notes, cascade), `state_vector` (BYTEA), `last_saved_at` | Persisted Yjs document, 1:1 with `notes` |
-| `share` | `id` (UUID PK), `note_id` (FK → notes, cascade), `guest_id` (UUID), `access_role` (enum `access_type`: View/Edit/Owner, default View), `created_at`, `updated_at` | Unique on (note_id, guest_id), nulls not distinct |
+| `share` | `id` (UUID PK), `note_id` (FK → notes, cascade), `guest_id` (UUID), `access_role` (enum `access_type`: View/Edit/Owner, default View), `created_at`, `updated_at` | Unique on (note_id, guest_id), nulls not distinct (one public link per note); indexed on `guest_id` |
 

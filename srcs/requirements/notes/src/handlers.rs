@@ -368,12 +368,21 @@ fn check_title(state: &AppState, locale: &str, title: &str) -> Result<(), ApiErr
 	Ok(())
 }
 
+/// Must run inside the transaction that writes the slug: it takes a per-owner lock
+/// (released at commit) so concurrent creates and renames by the same user pick
+/// slugs one at a time instead of all seeing the same one as free. The unique index
+/// on (owner_id, owner_url) is the backstop.
 pub async fn generate_unique_slug(
 	tx: &mut sqlx::PgConnection,
 	owner_id: Uuid,
 	title: &str,
 	exclude_id: Option<Uuid>,
 ) -> Result<String, sqlx::Error> {
+	sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))")
+		.bind(owner_id)
+		.execute(&mut *tx)
+		.await?;
+
 	let base_slug = slugify(title);
 	let mut slug = base_slug.clone();
 	let mut count = 1;

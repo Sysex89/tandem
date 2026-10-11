@@ -565,3 +565,115 @@ async fn error_messages_follow_accept_language(pool: PgPool) {
 		"unknown languages fall back to English"
 	);
 }
+
+#[sqlx::test]
+async fn concurrent_notes_with_the_same_title_get_distinct_slugs(pool: PgPool) {
+	let app = app(pool);
+	let alice = user();
+	// e.g. a double-clicked "New note": each request checks the slug is free, then inserts
+	let notes = futures_join(
+		(0..8)
+			.map(|_| {
+				let app = app.clone();
+				async move {
+					call(&app, Method::POST, "/api/notes")
+						.by(alice)
+						.json(json!({ "title": "Plan" }))
+						.send()
+						.await
+				}
+			})
+			.collect(),
+	)
+	.await;
+
+	let mut slugs: Vec<_> = notes
+		.iter()
+		.map(|(status, note)| {
+			assert_eq!(*status, StatusCode::OK, "{note}");
+			note["owner_url"].as_str().unwrap().to_string()
+		})
+		.collect();
+	slugs.sort();
+	slugs.dedup();
+	assert_eq!(slugs.len(), 8, "duplicate slugs: {slugs:?}");
+}
+
+/// Runs the futures concurrently on the test runtime.
+async fn futures_join<F: std::future::Future<Output = T> + Send + 'static, T: Send + 'static>(
+	futures: Vec<F>,
+) -> Vec<T> {
+	let handles: Vec<_> = futures.into_iter().map(tokio::spawn).collect();
+	let mut out = Vec::new();
+	for handle in handles {
+		out.push(handle.await.unwrap());
+	}
+	out
+}
+
+// --- Migrations ----------------------------------------------------------------------
+
+/// A database created by the old init script (before migrations), with duplicate slugs
+/// that the old check-then-insert race could produce, upgrades without losing data.
+#[sqlx::test(migrations = false, fixtures("fixtures/legacy_init.sql"))]
+async fn a_database_from_the_old_init_script_upgrades_in_place(pool: PgPool) {
+	let alice = user();
+	let ids: Vec<Uuid> = sqlx::query_scalar(
+		"INSERT INTO notes (title, owner_id, owner_url, created_at)
+		 VALUES ('Plan', $1, 'plan', NOW() - INTERVAL '2 days'),
+		        ('Plan', $1, 'plan', NOW() - INTERVAL '1 day'),
+		        ('Solo', $1, 'solo', NOW())
+		 RETURNING id",
+	)
+	.bind(alice)
+	.fetch_all(&pool)
+	.await
+	.unwrap();
+	sqlx::query("INSERT INTO share (note_id, guest_id, access_role) VALUES ($1, $2, 'Edit')")
+		.bind(ids[0])
+		.bind(user())
+		.execute(&pool)
+		.await
+		.unwrap();
+
+	sqlx::migrate!()
+		.run(&pool)
+		.await
+		.expect("migrations apply to an existing database");
+	sqlx::migrate!()
+		.run(&pool)
+		.await
+		.expect("and are idempotent");
+
+	let slugs: Vec<(Uuid, String)> =
+		sqlx::query_as("SELECT id, owner_url FROM notes ORDER BY created_at")
+			.fetch_all(&pool)
+			.await
+			.unwrap();
+	assert_eq!(
+		slugs[0],
+		(ids[0], "plan".to_string()),
+		"the oldest note keeps its slug"
+	);
+	assert_eq!(slugs[1].1, format!("plan-{}", &ids[1].to_string()[..8]));
+	assert_eq!(slugs[2].1, "solo");
+	let shares: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM share")
+		.fetch_one(&pool)
+		.await
+		.unwrap();
+	assert_eq!(shares, 1, "existing shares are kept");
+
+	// the database now enforces what the application used to check
+	let duplicate =
+		sqlx::query("INSERT INTO notes (title, owner_id, owner_url) VALUES ('x', $1, 'solo')")
+			.bind(alice)
+			.execute(&pool)
+			.await;
+	assert!(
+		duplicate
+			.unwrap_err()
+			.as_database_error()
+			.unwrap()
+			.is_unique_violation()
+	);
+}
