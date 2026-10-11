@@ -628,7 +628,7 @@
     {
       "type": "timeseries",
       "title": "Connection attempts / min",
-      "description": "WebSocket upgrades: accepted, unauthorized (no session at nginx) or forbidden (no access to the note).",
+      "description": "WebSocket upgrades: accepted, unauthorized (no session at nginx) or forbidden (no access to the note). Evicted: open connections closed because the client fell too far behind on broadcasts (it reconnects and resyncs).",
       "id": 13,
       "datasource": {
         "type": "prometheus",
@@ -649,6 +649,15 @@
           "expr": "sum by (result) (rate(editor_connections_total{job=\"editor\"}[5m])) * 60",
           "legendFormat": "{{result}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(editor_clients_evicted_total{job=\"editor\"}[5m])) * 60",
+          "legendFormat": "evicted (too slow)",
+          "refId": "B"
         }
       ],
       "fieldConfig": {

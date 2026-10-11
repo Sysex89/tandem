@@ -3,16 +3,23 @@ use dashmap::DashMap;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use tokio::sync::{Mutex, RwLock, mpsc::UnboundedSender};
+use tokio::sync::{Mutex, Notify, RwLock, mpsc::Sender};
 use uuid::Uuid;
 use y_sync::awareness::Awareness;
 use yrs::Doc;
+
+/// A connected client as seen by the room: its outgoing queue, and a signal to
+/// disconnect it when it cannot keep up (see ws_handler::CLIENT_QUEUE).
+pub struct Client {
+	pub tx: Sender<Message>,
+	pub evict: Arc<Notify>,
+}
 
 //	Represents an active document in RAM
 pub struct DocumentRoom {
 	pub doc: Arc<RwLock<Doc>>,
 	pub awareness: Arc<RwLock<Awareness>>,
-	pub clients: DashMap<usize, UnboundedSender<Message>>,
+	pub clients: DashMap<usize, Client>,
 	pub dirty: AtomicBool,
 	// Last title written to the notes service (see title::sync_title)
 	pub saved_title: Mutex<String>,

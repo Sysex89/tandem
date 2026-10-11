@@ -11,15 +11,20 @@ use std::sync::{
 	Arc,
 	atomic::{AtomicBool, AtomicUsize, Ordering},
 };
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 use uuid::Uuid;
 
 use crate::db;
 use crate::metrics;
 use crate::models::Access;
-use crate::state::{AppState, DocumentRoom};
+use crate::state::{AppState, Client, DocumentRoom};
 use crate::sync;
 use crate::title;
+
+/// Messages queued for one client before it counts as too slow and is disconnected.
+/// The client reconnects and resyncs the full document, which is cheaper than
+/// buffering without limit for a socket that is not being read.
+const CLIENT_QUEUE: usize = 2048;
 
 // global counter to assign unique IDs to clients (for awareness tracking)
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
@@ -131,8 +136,15 @@ async fn handle_socket(
 	tracing::debug!("Registering client {} for note {}", client_id, note_id);
 
 	// channel: tx to receive messages from other clients, rx to send messages to this client. Pipe tx -> rx.
-	let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
-	room.clients.insert(client_id, tx.clone());
+	let (tx, mut rx) = mpsc::channel::<Message>(CLIENT_QUEUE);
+	let evict = Arc::new(Notify::new());
+	room.clients.insert(
+		client_id,
+		Client {
+			tx,
+			evict: evict.clone(),
+		},
+	);
 
 	// Shared with the receive task so the gauge follows mid-session role changes.
 	let can_write = Arc::new(AtomicBool::new(access.can_write()));
@@ -183,9 +195,20 @@ async fn handle_socket(
 								if !response_bytes.is_empty() {
 									let broadcast_msg = Message::Binary(response_bytes.into());
 
+									let mut too_slow = Vec::new();
 									for client in room_clone.clients.iter() {
-										if *client.key() != client_id {
-											let _ = client.value().send(broadcast_msg.clone());
+										if *client.key() != client_id
+											&& let Err(mpsc::error::TrySendError::Full(_)) = client.value().tx.try_send(broadcast_msg.clone())
+										{
+											too_slow.push(*client.key());
+										}
+									}
+									// removed after iterating: removing while holding a DashMap shard would deadlock
+									for slow in too_slow {
+										if let Some((_, client)) = room_clone.clients.remove(&slow) {
+											metrics::get().clients_evicted_total.inc();
+											tracing::warn!("Client {} on note {} fell {} messages behind, disconnecting", slow, note_id, CLIENT_QUEUE);
+											client.evict.notify_one();
 										}
 									}
 								}
@@ -223,7 +246,11 @@ async fn handle_socket(
 	tokio::select! {
 		_ = (&mut send_task) => tracing::debug!("Send task for client {} finished", client_id),
 		_ = (&mut recv_task) => tracing::debug!("Receive task for client {} finished", client_id),
+		_ = evict.notified() => tracing::debug!("Client {} evicted", client_id),
 	};
+	// dropping both halves of the socket closes the connection
+	send_task.abort();
+	recv_task.abort();
 
 	room.clients.remove(&client_id);
 	metrics::get()

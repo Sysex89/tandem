@@ -20,6 +20,8 @@ pub struct Metrics {
 	pub updates_dropped_total: IntCounter,
 	/// Open connections closed because access was revoked
 	pub access_revoked_total: IntCounter,
+	/// Connections closed because the client fell too far behind on broadcasts
+	pub clients_evicted_total: IntCounter,
 	/// Document saves to Postgres, by trigger (periodic | last_client) and result (ok | error)
 	pub saves_total: IntCounterVec,
 	pub save_duration_seconds: HistogramVec,
@@ -77,6 +79,13 @@ pub fn get() -> &'static Metrics {
 			IntCounter::new(
 				"editor_access_revoked_total",
 				"Open connections closed because access was revoked.",
+			)
+			.unwrap(),
+		),
+		clients_evicted_total: register(
+			IntCounter::new(
+				"editor_clients_evicted_total",
+				"Connections closed because the client could not keep up with broadcasts.",
 			)
 			.unwrap(),
 		),
@@ -165,6 +174,7 @@ mod tests {
 			"editor_connections_total",
 			"editor_updates_dropped_total",
 			"editor_access_revoked_total",
+			"editor_clients_evicted_total",
 		] {
 			assert!(text.contains(name), "{name} missing from /metrics");
 		}
