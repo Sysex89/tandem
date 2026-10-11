@@ -97,7 +97,7 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
    ```bash
    cp -r srcs/secrets.example srcs/secrets
    # then edit: auth_db_password, github_client_secret, session_secret_key,
-   #            grafana_admin_user, grafana_admin_password
+   #            grafana_admin_user, grafana_admin_password, monitoring_db_password
    ```
 
 3. Start it:

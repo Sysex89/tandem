@@ -37,6 +37,7 @@ write_secret() {
 	fi
 }
 write_secret auth_db_password "$(rand)"
+write_secret monitoring_db_password "$(rand)"
 write_secret session_secret_key "$(rand)"
 write_secret github_client_secret "demo-not-configured"
 write_secret grafana_admin_user "admin"

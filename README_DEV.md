@@ -28,3 +28,16 @@ If things act weird, your first step should be to purge the volumes. We have add
 If you see `EACCES` or permission denied errors, it's usually because files created inside the container (by `root`) are not editable by you (uid `1000` or `501`).
 
 *   **Fix**: Add `UID=<output of id -u>` and `GID=<output of id -g>` to `srcs/.env`, then rebuild with `make dev`. The dev images (`docker-compose-dev.yml`) use these to map permissions correctly; they default to 1000.
+
+### 3. Upgrading an existing database: monitoring role
+
+`postgres-exporter` connects as a read-only `monitoring` role (`pg_monitor` only, no table access). Fresh volumes get it from `postgres/init/03-monitoring.sh`; init scripts don't re-run on existing volumes, so create it once by hand:
+
+```bash
+./scripts/demo-setup.sh   # creates srcs/secrets/monitoring_db_password if missing
+set -a; . srcs/.env; set +a
+docker exec -i postgres psql -U "$DB_USER" -d "$DB_NAME" \
+  -c "CREATE ROLE monitoring LOGIN PASSWORD '$(cat srcs/secrets/monitoring_db_password)';" \
+  -c "GRANT pg_monitor TO monitoring;"
+make up
+```

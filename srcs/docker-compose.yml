@@ -116,6 +116,7 @@ services:
       AUTH_DB_NAME: ${AUTH_DB_NAME}
     secrets:
       - auth_db_password
+      - monitoring_db_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -179,7 +180,12 @@ services:
     container_name: postgres-exporter
     restart: always
     environment:
-      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable"
+      # Read-only `monitoring` role (pg_monitor), created by postgres/init/03-monitoring.sh
+      DATA_SOURCE_URI: "postgres:5432/${DB_NAME}?sslmode=disable"
+      DATA_SOURCE_USER: monitoring
+      DATA_SOURCE_PASS_FILE: /run/secrets/monitoring_db_password
+    secrets:
+      - monitoring_db_password
     depends_on:
       postgres:
         condition: service_healthy
@@ -206,6 +212,8 @@ secrets:
     file: ./secrets/grafana_admin_user
   grafana_admin_password:
     file: ./secrets/grafana_admin_password
+  monitoring_db_password:
+    file: ./secrets/monitoring_db_password
 
 networks:
   transcendence:
