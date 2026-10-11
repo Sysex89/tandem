@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: The Builder Stage
 # ==========================================
-FROM node:20-slim AS builder
+FROM node:25-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN pnpm run build
 # ==========================================
 # STAGE 2: The Production Runner Stage
 # ==========================================
-FROM node:20-slim AS runner
+FROM node:25-slim AS runner
 
 WORKDIR /app
 
