@@ -41,6 +41,12 @@ Design decisions worth calling out:
 
 More detail: [database schema](DOCS/reference/database-schema.md), [monitoring architecture](DOCS/explanation/monitoring-architecture-prometheus-grafana.md), [collaboration internals](srcs/requirements/frontend/docs/dev/collab/overview.md).
 
+## Observability
+
+Every service is scraped by Prometheus and has a provisioned Grafana dashboard (`/grafana/`). The editor service, which carries all real-time traffic, reports open documents, connected clients by access level, message rates, save latency and document size, and access-control events such as rejected connections and edits dropped from view-only clients.
+
+![Grafana dashboard for the real-time editor service](DOCS/img/editor-dashboard.png)
+
 ## Tech stack
 
 | Layer | Technologies |
@@ -69,7 +75,7 @@ This generates `srcs/.env` and `srcs/secrets/` (existing files are left untouche
 
 Open **https://localhost:8443**, accept the self-signed certificate, and log in as each user in two different browsers (or a normal and a private window) to watch edits and cursors sync live. GitHub login is disabled in the demo.
 
-`scripts/screenshot.mjs` regenerates the screenshot above against a running demo.
+`tests/e2e/screenshots/` has the scripts that regenerate the README screenshots against a running demo.
 
 ### Full setup (with GitHub login)
 

@@ -1,13 +1,13 @@
 // Captures the README screenshot: alice and bob editing the same note, each
 // seeing the other's live cursor. Requires `make demo` to be running.
 //
-//   npm install --no-save playwright-core && npx playwright install chromium
-//   node scripts/screenshot.mjs [output.png]
-import { chromium } from 'playwright-core';
+//   cd tests/e2e && pnpm install && pnpm exec playwright install chromium
+//   node screenshots/collaboration.mjs [output.png]   (run from tests/e2e)
+import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const BASE = process.env.BASE ?? 'https://localhost:8443';
-const OUT = process.argv[2] ?? 'DOCS/img/collaboration.png';
+const OUT = process.argv[2] ?? '../../DOCS/img/collaboration.png';
 const VIEWPORT = { width: 1100, height: 720 };
 
 const browser = await chromium.launch();

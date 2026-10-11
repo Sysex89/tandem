@@ -143,6 +143,19 @@ jobs:
       - name: Run tests
         working-directory: tests/e2e
         run: pnpm exec playwright test
+      - name: Editor metrics reach Prometheus and the Grafana dashboard loads
+        run: |
+          curl_net() { docker run --rm --network srcs_transcendence curlimages/curl -sf "$@"; }
+          # the e2e run above generated editor traffic; give Prometheus a scrape or two
+          for i in $(seq 1 10); do
+            curl_net -G http://prometheus:9090/api/v1/query \
+              --data-urlencode 'query=sum(editor_messages_total{job="editor"}) > 0' \
+              | grep -q '"value"' && break
+            [ "$i" = 10 ] && { echo "no editor metrics in Prometheus"; exit 1; }
+            sleep 3
+          done
+          curl_net -u "$(cat srcs/secrets/grafana_admin_user):$(cat srcs/secrets/grafana_admin_password)" \
+            http://grafana:3000/grafana/api/dashboards/uid/editor-metrics | grep -q '"uid":"editor-metrics"'
       - name: Service logs
         if: failure()
         run: docker compose -f srcs/docker-compose.yml logs --no-color > e2e-service-logs.txt

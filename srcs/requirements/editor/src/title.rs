@@ -36,18 +36,34 @@ pub async fn sync_title(state: &AppState, room: &DocumentRoom, note_id: Uuid) {
 
 	match result {
 		Ok(resp) if resp.status().is_success() => {
+			crate::metrics::get()
+				.title_syncs_total
+				.with_label_values(&["ok"])
+				.inc();
 			tracing::debug!("Saved title for note {}", note_id);
 			*saved = current;
 		}
-		Ok(resp) => tracing::warn!(
-			"Notes service rejected title for note {}: {}",
-			note_id,
-			resp.status()
-		),
-		Err(e) => tracing::warn!(
-			"Could not reach notes service to save title for note {}: {}",
-			note_id,
-			e
-		),
+		Ok(resp) => {
+			crate::metrics::get()
+				.title_syncs_total
+				.with_label_values(&["rejected"])
+				.inc();
+			tracing::warn!(
+				"Notes service rejected title for note {}: {}",
+				note_id,
+				resp.status()
+			);
+		}
+		Err(e) => {
+			crate::metrics::get()
+				.title_syncs_total
+				.with_label_values(&["error"])
+				.inc();
+			tracing::warn!(
+				"Could not reach notes service to save title for note {}: {}",
+				note_id,
+				e
+			);
+		}
 	}
 }

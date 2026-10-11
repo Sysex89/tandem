@@ -9,12 +9,13 @@ use axum::{
 use futures_util::{SinkExt, stream::StreamExt};
 use std::sync::{
 	Arc,
-	atomic::{AtomicUsize, Ordering},
+	atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::db;
+use crate::metrics;
 use crate::models::Access;
 use crate::state::{AppState, DocumentRoom};
 use crate::sync;
@@ -37,13 +38,27 @@ pub async fn ws_route(
 		.and_then(|v| Uuid::parse_str(v).ok())
 	{
 		Some(id) => id,
-		None => return StatusCode::UNAUTHORIZED.into_response(),
+		None => {
+			metrics::get()
+				.connections_total
+				.with_label_values(&["unauthorized"])
+				.inc();
+			return StatusCode::UNAUTHORIZED.into_response();
+		}
 	};
 
 	// Check ownership or share access (and whether the user may edit)
 	let Some(access) = db::access_level(&state.pool, note_id, user_id).await else {
+		metrics::get()
+			.connections_total
+			.with_label_values(&["forbidden"])
+			.inc();
 		return StatusCode::FORBIDDEN.into_response();
 	};
+	metrics::get()
+		.connections_total
+		.with_label_values(&["accepted"])
+		.inc();
 
 	// Upgrade to WebSocket
 	ws.on_upgrade(move |socket| handle_socket(socket, note_id, state, user_id, access))
@@ -75,6 +90,7 @@ async fn handle_socket(
 				tracing::info!("Loaded note {} from database", note_id);
 				let new_room = Arc::new(DocumentRoom::new(doc));
 				e.insert(new_room.clone());
+				metrics::get().rooms_active.set(state.rooms.len() as i64);
 
 				let state_bg = state.clone();
 				let room_bg = new_room.clone();
@@ -93,7 +109,7 @@ async fn handle_socket(
 						if room_bg.dirty.load(Ordering::Acquire) {
 							tracing::debug!("Background save for note {}", note_id);
 							let doc_lock = room_bg.doc.read().await;
-							if db::save_note(&state_bg.pool, note_id, &doc_lock)
+							if db::save_note(&state_bg.pool, note_id, &doc_lock, "periodic")
 								.await
 								.is_ok()
 							{
@@ -117,6 +133,13 @@ async fn handle_socket(
 	// channel: tx to receive messages from other clients, rx to send messages to this client. Pipe tx -> rx.
 	let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
 	room.clients.insert(client_id, tx.clone());
+
+	// Shared with the receive task so the gauge follows mid-session role changes.
+	let can_write = Arc::new(AtomicBool::new(access.can_write()));
+	metrics::get()
+		.clients_connected
+		.with_label_values(&[metrics::access_label(access.can_write())])
+		.inc();
 
 	// and another channel: sender to send messages to others, receiver to receive messages from this client
 	let (mut sender, mut receiver) = socket.split();
@@ -142,6 +165,7 @@ async fn handle_socket(
 	// without needing any cross-service signal from the notes service.
 	let room_clone = room.clone();
 	let state_recv = state.clone();
+	let can_write_recv = can_write.clone();
 	let mut recv_task = tokio::spawn(async move {
 		let mut access = access;
 		let mut access_check = tokio::time::interval(std::time::Duration::from_secs(15));
@@ -175,8 +199,17 @@ async fn handle_socket(
 				_ = access_check.tick() => {
 					match db::access_level(&state_recv.pool, note_id, user_id).await {
 						// picks up role changes too, e.g. Edit downgraded to View
-						Some(level) => access = level,
+						Some(level) => {
+							if level != access {
+								let gauge = &metrics::get().clients_connected;
+								gauge.with_label_values(&[metrics::access_label(access.can_write())]).dec();
+								gauge.with_label_values(&[metrics::access_label(level.can_write())]).inc();
+								can_write_recv.store(level.can_write(), Ordering::Relaxed);
+							}
+							access = level;
+						}
 						None => {
+							metrics::get().access_revoked_total.inc();
 							tracing::info!("Access revoked for user {} on note {}, closing client {}", user_id, note_id, client_id);
 							break;
 						}
@@ -193,13 +226,17 @@ async fn handle_socket(
 	};
 
 	room.clients.remove(&client_id);
+	metrics::get()
+		.clients_connected
+		.with_label_values(&[metrics::access_label(can_write.load(Ordering::Relaxed))])
+		.dec();
 	tracing::info!("Client {} disconnected from note {}", client_id, note_id);
 
 	if room.clients.is_empty() {
 		tracing::info!("Last user left room {}. Saving to DB...", note_id);
 
 		let doc_lock = room.doc.read().await;
-		if db::save_note(&state.pool, note_id, &doc_lock)
+		if db::save_note(&state.pool, note_id, &doc_lock, "last_client")
 			.await
 			.is_err()
 		{
@@ -209,5 +246,6 @@ async fn handle_socket(
 		title::sync_title(&state, &room, note_id).await;
 
 		state.rooms.remove(&note_id);
+		metrics::get().rooms_active.set(state.rooms.len() as i64);
 	}
 }

@@ -1,11 +1,17 @@
 mod db;
+mod metrics;
 mod models;
 mod state;
 mod sync;
 mod title;
 mod ws_handler;
 
-use axum::{Router, routing::get};
+use axum::{
+	Router,
+	http::{StatusCode, header},
+	response::{IntoResponse, Response},
+	routing::get,
+};
 use sqlx::PgPool;
 use state::AppState;
 use std::net::SocketAddr;
@@ -23,11 +29,14 @@ async fn main() {
 		.with(tracing_subscriber::fmt::layer())
 		.init();
 
+	metrics::init();
 	let db_pool = setup_database().await;
 	let app_state = Arc::new(AppState::new(db_pool));
 
 	let app = Router::new()
 		.route("/ws/{id}", get(ws_handler::ws_route))
+		// Internal only: nginx proxies /ws/ but not /metrics; Prometheus scrapes it directly.
+		.route("/metrics", get(metrics_handler))
 		.with_state(app_state);
 
 	let port = std::env::var("PORT").unwrap_or_else(|_| "3004".to_string());
@@ -52,4 +61,11 @@ async fn setup_database() -> PgPool {
 	PgPool::connect(&db_url)
 		.await
 		.expect("Failed to create pool.")
+}
+
+async fn metrics_handler() -> Response {
+	match metrics::gather_prometheus_text() {
+		Ok((body, content_type)) => ([(header::CONTENT_TYPE, content_type)], body).into_response(),
+		Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+	}
 }

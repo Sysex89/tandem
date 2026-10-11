@@ -1,3 +1,4 @@
+use crate::metrics;
 use crate::models::Access;
 use std::sync::atomic::{AtomicBool, Ordering};
 use y_sync::awareness::Awareness;
@@ -15,7 +16,23 @@ pub async fn process_binary_message(
 	access: Access,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 	// get raw message and tranform it into our internal Message struct (which can be a Sync message or a Awareness message)
-	let msg = Message::decode_v1(msg_bytes)?;
+	let msg = Message::decode_v1(msg_bytes).inspect_err(|_| {
+		metrics::get()
+			.messages_total
+			.with_label_values(&["invalid"])
+			.inc();
+	})?;
+	let kind = match &msg {
+		Message::Sync(SyncMessage::SyncStep1(_)) => "sync_step1",
+		Message::Sync(SyncMessage::SyncStep2(_)) => "sync_step2",
+		Message::Sync(SyncMessage::Update(_)) => "update",
+		Message::Awareness(_) => "awareness",
+		_ => "other",
+	};
+	metrics::get()
+		.messages_total
+		.with_label_values(&[kind])
+		.inc();
 
 	// we will write the response into this encoder, which we will then turn into bytes at the end. If we dont have to respond, it will just be empty
 	let mut response_encoder = EncoderV1::new();
@@ -34,6 +51,7 @@ pub async fn process_binary_message(
 				}
 				SyncMessage::SyncStep2(_) | SyncMessage::Update(_) if !access.can_write() => {
 					// Read-only client: drop its edits, never apply or broadcast them.
+					metrics::get().updates_dropped_total.inc();
 					tracing::debug!("Dropped document update from read-only client");
 				}
 				SyncMessage::SyncStep2(update_data) | SyncMessage::Update(update_data) => {
@@ -134,6 +152,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn read_only_client_updates_are_dropped() {
+		let dropped_before = metrics::get().updates_dropped_total.get();
 		let (doc, awareness, dirty) = server();
 		let response = process_binary_message(
 			&client_update("vandalism"),
@@ -148,6 +167,10 @@ mod tests {
 		assert_eq!(body_text(&doc).await, "");
 		assert!(!dirty.load(Ordering::Acquire), "nothing to save");
 		assert!(response.is_empty(), "nothing to broadcast");
+		assert!(
+			metrics::get().updates_dropped_total.get() > dropped_before,
+			"drop is counted"
+		);
 	}
 
 	#[tokio::test]

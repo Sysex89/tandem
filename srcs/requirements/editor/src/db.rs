@@ -72,25 +72,46 @@ pub async fn access_level(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> Option
 	}
 }
 
-pub async fn save_note(pool: &PgPool, note_id: Uuid, doc: &Doc) -> Result<(), ()> {
+/// `trigger` labels the save in metrics: "periodic" (background loop) or "last_client".
+pub async fn save_note(
+	pool: &PgPool,
+	note_id: Uuid,
+	doc: &Doc,
+	trigger: &'static str,
+) -> Result<(), ()> {
+	let m = crate::metrics::get();
+	let timer = m
+		.save_duration_seconds
+		.with_label_values(&[trigger])
+		.start_timer();
 	// get state vector as blob
 	let state_blob = {
 		let txn = doc.transact();
 		txn.encode_state_as_update_v1(&StateVector::default())
 	};
 
+	m.document_size_bytes.observe(state_blob.len() as f64);
+
 	// save to db
-	sqlx::query(
+	let result = sqlx::query(
 		"UPDATE note_states SET state_vector = $1, last_saved_at = NOW() WHERE note_id = $2",
 	)
 	.bind(&state_blob)
 	.bind(note_id)
 	.execute(pool)
-	.await
-	.map_err(|e| {
-		tracing::error!("DB Error saving note {}: {}", note_id, e);
-	})?;
+	.await;
+	timer.observe_duration();
 
-	tracing::info!("Successfully saved note {}", note_id);
-	Ok(())
+	match result {
+		Ok(_) => {
+			m.saves_total.with_label_values(&[trigger, "ok"]).inc();
+			tracing::info!("Successfully saved note {}", note_id);
+			Ok(())
+		}
+		Err(e) => {
+			m.saves_total.with_label_values(&[trigger, "error"]).inc();
+			tracing::error!("DB Error saving note {}: {}", note_id, e);
+			Err(())
+		}
+	}
 }
