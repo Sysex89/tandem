@@ -64,9 +64,20 @@ async fn setup_database() -> PgPool {
 
 	tracing::info!("Connecting to database at {}:5432/{}", db_host, db_name);
 
-	PgPool::connect(&db_url)
+	let pool = PgPool::connect(&db_url)
 		.await
-		.expect("Failed to create pool.")
+		.expect("Failed to create pool.");
+
+	// The notes service owns the main database schema (the editor only reads and writes
+	// note_states). Migrations are embedded at build time; sqlx takes an advisory lock,
+	// so concurrent starts are safe.
+	sqlx::migrate!()
+		.run(&pool)
+		.await
+		.expect("Failed to apply database migrations");
+	tracing::info!("Database migrations are up to date");
+
+	pool
 }
 
 async fn metrics_handler() -> Response {

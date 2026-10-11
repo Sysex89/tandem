@@ -1,3 +1,5 @@
+-- The schema as postgres/init/02-init.sql created it before migrations existed.
+-- Used by the migration tests to check that existing databases upgrade cleanly.
 -- the container - managed by notes.
 CREATE TABLE IF NOT EXISTS notes (
 	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

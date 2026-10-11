@@ -41,10 +41,8 @@ This script is written by us to create the **Auth Database** securely.
     2.  Create the user `$AUTH_DB_USER`.
     3.  Grant all privileges on the database to that user.
 
-#### `02-init.sql` (The Notes Table Logic)
-This is a standard SQL dump. It runs against the *default* database (`POSTGRES_DB`).
-*   It creates the `notes` table (ID, Title, Owner).
-*   It creates the `note_states` table (for the collaborative editor).
+#### The notes tables (no longer here)
+The main database's tables (`notes`, `share`, `note_states`) used to be created by `02-init.sql` in this folder, which only ran on an empty volume, so schema changes required wiping all data. They are now sqlx migrations owned by the notes service (`notes/migrations/`), applied every time it starts. See `DOCS/reference/database-schema.md`.
 
 ---
 
@@ -59,7 +57,7 @@ In `docker-compose.yml`, we mount a volume (`postgres_data`) to this path.
 If you restart the container, your data is safe, and the scripts will **NOT** run again (to prevent overwriting data).
 
 **💥 How to "Reset" the Database:**
-If you change `init/01-init.sh` or `init/02-init.sql` and want to see the changes:
+If you change a script in `init/` and want to see the changes (main-database schema changes don't need this: add a migration in `notes/migrations/` instead):
 1.  Stop the containers: `docker compose down`
 2.  **Delete the volume**: `docker volume rm srcs_postgres_data` (This wipes all data!)
 3.  Restart: `docker compose up --build`

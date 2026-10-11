@@ -1,5 +1,5 @@
 //! API tests: requests go through the real router into a throwaway Postgres database
-//! (`#[sqlx::test]` creates one per test and loads `postgres/init/02-init.sql`).
+//! (`#[sqlx::test]` creates one per test and applies `migrations/`).
 //! Needs `DATABASE_URL` pointing at a server where the user may create databases;
 //! `make test-notes` starts one.
 //!
@@ -146,7 +146,7 @@ fn user() -> Uuid {
 
 // --- Identity ------------------------------------------------------------------
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn requests_without_a_valid_user_id_are_rejected(pool: PgPool) {
 	let app = app(pool);
 	let id = Uuid::new_v4();
@@ -194,7 +194,7 @@ async fn requests_without_a_valid_user_id_are_rejected(pool: PgPool) {
 
 // --- Notes and slugs -------------------------------------------------------------
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn a_new_note_gets_a_slug_and_an_empty_document(pool: PgPool) {
 	let app = app(pool.clone());
 	let alice = user();
@@ -228,7 +228,7 @@ async fn a_new_note_gets_a_slug_and_an_empty_document(pool: PgPool) {
 	assert_eq!(fetched["title"], "My First Note!");
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn duplicate_titles_get_numbered_slugs_per_owner(pool: PgPool) {
 	let app = app(pool);
 	let (alice, bob) = (user(), user());
@@ -262,7 +262,7 @@ async fn duplicate_titles_get_numbered_slugs_per_owner(pool: PgPool) {
 	);
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn titles_without_letters_or_digits_still_get_a_usable_slug(pool: PgPool) {
 	let app = app(pool);
 	let alice = user();
@@ -272,7 +272,7 @@ async fn titles_without_letters_or_digits_still_get_a_usable_slug(pool: PgPool) 
 	assert_eq!(second["owner_url"], "untitled-1");
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn renaming_regenerates_the_slug_without_colliding_with_itself(pool: PgPool) {
 	let app = app(pool);
 	let alice = user();
@@ -291,7 +291,7 @@ async fn renaming_regenerates_the_slug_without_colliding_with_itself(pool: PgPoo
 	assert!(renamed["updated_at"].as_str() > note["updated_at"].as_str());
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn titles_longer_than_the_column_are_rejected_not_a_server_error(pool: PgPool) {
 	let app = app(pool);
 	let alice = user();
@@ -312,7 +312,7 @@ async fn titles_longer_than_the_column_are_rejected_not_a_server_error(pool: PgP
 	assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn users_cannot_read_rename_or_delete_other_users_notes(pool: PgPool) {
 	let app = app(pool);
 	let (alice, mallory) = (user(), user());
@@ -332,7 +332,7 @@ async fn users_cannot_read_rename_or_delete_other_users_notes(pool: PgPool) {
 	assert_eq!(still["title"], "Private");
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn deleting_a_note_removes_its_shares_and_document(pool: PgPool) {
 	let app = app(pool.clone());
 	let (alice, bob) = (user(), user());
@@ -373,7 +373,7 @@ async fn deleting_a_note_removes_its_shares_and_document(pool: PgPool) {
 	);
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn account_deletion_removes_only_that_users_notes(pool: PgPool) {
 	let app = app(pool);
 	let (alice, bob) = (user(), user());
@@ -390,7 +390,7 @@ async fn account_deletion_removes_only_that_users_notes(pool: PgPool) {
 	assert_eq!(list(&app, bob, "/api/notes").await.len(), 1);
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn export_contains_only_the_callers_notes_with_their_document_state(pool: PgPool) {
 	let app = app(pool);
 	let (alice, bob) = (user(), user());
@@ -410,7 +410,7 @@ async fn export_contains_only_the_callers_notes_with_their_document_state(pool: 
 
 // --- Sharing ---------------------------------------------------------------------
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn only_the_owner_can_share_a_note(pool: PgPool) {
 	let app = app(pool);
 	let (alice, bob, mallory) = (user(), user(), user());
@@ -446,7 +446,7 @@ async fn only_the_owner_can_share_a_note(pool: PgPool) {
 	assert_eq!(status, StatusCode::CONFLICT, "one share per guest and note");
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn guests_see_shared_notes_until_the_share_is_revoked(pool: PgPool) {
 	let app = app(pool);
 	let (alice, bob, mallory) = (user(), user(), user());
@@ -501,7 +501,7 @@ async fn guests_see_shared_notes_until_the_share_is_revoked(pool: PgPool) {
 	assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn a_public_link_opens_for_any_signed_in_user(pool: PgPool) {
 	let app = app(pool);
 	let (alice, anyone) = (user(), user());
@@ -531,7 +531,7 @@ async fn a_public_link_opens_for_any_signed_in_user(pool: PgPool) {
 
 // --- i18n --------------------------------------------------------------------------
 
-#[sqlx::test(migrations = false, fixtures("../../postgres/init/02-init.sql"))]
+#[sqlx::test]
 async fn error_messages_follow_accept_language(pool: PgPool) {
 	let app = app(pool);
 	let missing = format!("/api/notes/{}", Uuid::new_v4());

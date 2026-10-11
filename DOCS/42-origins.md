@@ -45,7 +45,7 @@ Two logical databases in a single PostgreSQL 16 instance.
 | `accounts` | `id` (UUID PK), `user_id` (FK → users, cascade), `provider` (enum: github/local/google/42), `provider_account_id`, `password_hash` | Unique on (provider, provider_account_id). One user can have multiple provider accounts |
 | `sessions` | `id` (UUID PK), `user_id` (FK → users, cascade), `token` (UUID, unique), `expires_at`, `user_agent`, `ip_address` | Cookie-based session tracking |
 
-**Main database** (SQL init in `postgres/init/02-init.sql`):
+**Main database** (SQL init in `postgres/init/02-init.sql` at the time; now sqlx migrations in `notes/migrations/`):
 
 | Table | Columns | Notes |
 | --- | --- | --- |
