@@ -1,5 +1,5 @@
 # Use the 'slim' base for better compatibility with native modules
-FROM node:20-slim
+FROM node:25-slim
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
