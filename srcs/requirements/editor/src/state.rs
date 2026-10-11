@@ -46,6 +46,8 @@ pub struct AppState {
 	pub http: reqwest::Client,
 	/// Base URL of the notes service on the internal network
 	pub notes_url: String,
+	/// Set on SIGTERM: new connections are refused and final saves are labelled "shutdown"
+	pub shutting_down: AtomicBool,
 }
 
 impl AppState {
@@ -56,6 +58,7 @@ impl AppState {
 			http: reqwest::Client::new(),
 			notes_url: std::env::var("NOTES_URL")
 				.unwrap_or_else(|_| "http://notes:3003".to_string()),
+			shutting_down: AtomicBool::new(false),
 		}
 	}
 }

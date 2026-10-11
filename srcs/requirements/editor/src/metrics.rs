@@ -22,7 +22,7 @@ pub struct Metrics {
 	pub access_revoked_total: IntCounter,
 	/// Connections closed because the client fell too far behind on broadcasts
 	pub clients_evicted_total: IntCounter,
-	/// Document saves to Postgres, by trigger (periodic | last_client) and result (ok | error)
+	/// Document saves to Postgres, by trigger (periodic | last_client | shutdown) and result (ok | error)
 	pub saves_total: IntCounterVec,
 	pub save_duration_seconds: HistogramVec,
 	/// Encoded Yjs state size at save time

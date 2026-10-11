@@ -72,7 +72,7 @@ pub async fn access_level(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> Option
 	}
 }
 
-/// `trigger` labels the save in metrics: "periodic" (background loop) or "last_client".
+/// `trigger` labels the save in metrics: "periodic" (background loop), "last_client" or "shutdown".
 pub async fn save_note(
 	pool: &PgPool,
 	note_id: Uuid,

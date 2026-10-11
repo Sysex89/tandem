@@ -1,6 +1,7 @@
 mod db;
 mod metrics;
 mod models;
+mod shutdown;
 mod state;
 mod sync;
 mod title;
@@ -37,7 +38,7 @@ async fn main() {
 		.route("/ws/{id}", get(ws_handler::ws_route))
 		// Internal only: nginx proxies /ws/ but not /metrics; Prometheus scrapes it directly.
 		.route("/metrics", get(metrics_handler))
-		.with_state(app_state);
+		.with_state(app_state.clone());
 
 	let port = std::env::var("PORT").unwrap_or_else(|_| "3004".to_string());
 	let addr: SocketAddr = format!("0.0.0.0:{}", port)
@@ -46,7 +47,13 @@ async fn main() {
 
 	tracing::info!("Listening on {}", addr);
 	let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-	axum::serve(listener, app).await.unwrap();
+	// Dropping the server future on a signal closes the listener; the per-connection
+	// tasks keep running so drain() can close them and save every open document.
+	// (axum's with_graceful_shutdown would instead wait for the upgraded WebSockets.)
+	tokio::select! {
+		result = axum::serve(listener, app) => result.unwrap(),
+		_ = shutdown::signal() => shutdown::drain(&app_state).await,
+	}
 }
 
 async fn setup_database() -> PgPool {

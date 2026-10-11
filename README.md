@@ -35,7 +35,7 @@ flowchart LR
 Design decisions worth calling out:
 
 - **Authentication happens once, at the edge.** nginx gates every protected route with an `auth_request` sub-request to the auth service, then injects the verified `X-User-Id` header (overwriting anything the client sent). Downstream services contain no session logic.
-- **Document content is a CRDT, metadata is relational.** The `notes` service owns titles, ownership and sharing as ordinary rows. The `editor` service keeps one in-memory Yjs document per note, relays updates over WebSockets, and persists the binary state.
+- **Document content is a CRDT, metadata is relational.** The `notes` service owns titles, ownership and sharing as ordinary rows. The `editor` service keeps one in-memory Yjs document per note, relays updates over WebSockets, and persists the binary state. On shutdown it closes every socket with code 1012 (service restart), so clients reconnect to the next instance, and saves every open document first. A restart takes under a second instead of Docker's 10 s timeout.
 - **Rust on the hot paths.** Note CRUD and WebSocket sync are written in Rust (Axum, sqlx, yrs) for low overhead. Auth is TypeScript (Fastify + Drizzle).
 - **Each service owns its data.** Auth and notes live in separate logical databases and reference each other only by user ID, so account deletion explicitly calls the notes service to remove a user's notes.
 
@@ -136,7 +136,7 @@ make e2e    # Playwright end-to-end tests against the running demo stack
 make load   # collaboration load test (2 to 50 simultaneous editors), see DOCS/explanation/load-test.md
 ```
 
-The end-to-end suite covers live sync between two users, persistence, title sync, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth integration tests, Rust lints, the frontend build and config checks on every push.
+The end-to-end suite covers live sync between two users, persistence, title sync, edits surviving an editor restart, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth integration tests, Rust lints, the frontend build and config checks on every push.
 
 Troubleshooting stale volumes and file permissions: [README_DEV.md](README_DEV.md).
 

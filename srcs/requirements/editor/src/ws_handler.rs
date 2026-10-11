@@ -36,6 +36,11 @@ pub async fn ws_route(
 	State(state): State<Arc<AppState>>,
 	headers: HeaderMap,
 ) -> Response {
+	// Draining for shutdown: the client retries and lands on the next instance
+	if state.shutting_down.load(Ordering::Acquire) {
+		return StatusCode::SERVICE_UNAVAILABLE.into_response();
+	}
+
 	// Extract the verified User ID from Nginx headers
 	let user_id = match headers
 		.get("X-User-Id")
@@ -262,8 +267,13 @@ async fn handle_socket(
 	if room.clients.is_empty() {
 		tracing::info!("Last user left room {}. Saving to DB...", note_id);
 
+		let trigger = if state.shutting_down.load(Ordering::Acquire) {
+			"shutdown"
+		} else {
+			"last_client"
+		};
 		let doc_lock = room.doc.read().await;
-		if db::save_note(&state.pool, note_id, &doc_lock, "last_client")
+		if db::save_note(&state.pool, note_id, &doc_lock, trigger)
 			.await
 			.is_err()
 		{

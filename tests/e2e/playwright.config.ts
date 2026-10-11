@@ -13,4 +13,9 @@ export default defineConfig({
 		ignoreHTTPSErrors: true,
 		trace: "retain-on-failure",
 	},
+	projects: [
+		{ name: "app", testIgnore: /restart\.spec\.ts/ },
+		// restarts the editor container, so it must not overlap with the other tests
+		{ name: "restart", testMatch: /restart\.spec\.ts/, dependencies: ["app"] },
+	],
 });
