@@ -132,11 +132,12 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
 ### Tests
 
 ```bash
-make e2e    # Playwright end-to-end tests against the running demo stack
-make load   # collaboration load test (2 to 50 simultaneous editors), see DOCS/explanation/load-test.md
+make e2e         # Playwright end-to-end tests against the running demo stack
+make test-notes  # notes service API tests against a throwaway Postgres (needs cargo)
+make load        # collaboration load test (2 to 50 simultaneous editors), see DOCS/explanation/load-test.md
 ```
 
-The end-to-end suite covers live sync between two users, persistence, title sync, edits surviving an editor restart, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth integration tests, Rust lints, the frontend build and config checks on every push.
+The end-to-end suite covers live sync between two users, persistence, title sync, edits surviving an editor restart, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth and notes API tests (ownership, sharing and revocation, slugs, account deletion, localised errors), the editor unit tests, Rust lints, the frontend build and config checks on every push.
 
 Troubleshooting stale volumes and file permissions: [README_DEV.md](README_DEV.md).
 

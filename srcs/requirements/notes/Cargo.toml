@@ -16,3 +16,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 fluent-bundle = "0.15"
 unic-langid = "0.9"
 prometheus = "0.13"
+
+[dev-dependencies]
+# #[sqlx::test] gives every test its own throwaway database (needs DATABASE_URL)
+sqlx = { version = "0.8.6", features = ["migrate", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+serde_json = "1"

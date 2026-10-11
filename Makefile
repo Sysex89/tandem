@@ -66,6 +66,14 @@ demo:
 e2e:
 	cd tests/e2e && pnpm install --frozen-lockfile && pnpm exec playwright test
 
+# Notes service tests (needs cargo). #[sqlx::test] creates a database per test in a
+# throwaway Postgres container, which is removed afterwards.
+test-notes:
+	@docker run -d --rm --name mycelium-test-pg -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16-alpine >/dev/null
+	@until docker exec mycelium-test-pg pg_isready -h localhost -U postgres >/dev/null 2>&1; do sleep 1; done
+	@cd srcs/requirements/notes && DATABASE_URL=postgres://postgres:test@localhost:55432/postgres cargo test; \
+		status=$$?; docker stop mycelium-test-pg >/dev/null; exit $$status
+
 # Collaboration load test against a running stack; see DOCS/explanation/load-test.md
 load:
 	cd tests/load && pnpm install --frozen-lockfile && node collab-load.mjs --clients 2,10,25,50
@@ -83,4 +91,4 @@ logs:
 getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
 
-.PHONY: all up live down clean cleanv fclean wipe re demo e2e load dev rebuild logs getlogs
+.PHONY: all up live down clean cleanv fclean wipe re demo e2e test-notes load dev rebuild logs getlogs

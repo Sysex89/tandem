@@ -5,6 +5,9 @@ mod models;
 mod share_handlers;
 mod slug_handlers;
 
+#[cfg(test)]
+mod api_tests;
+
 use axum::{
 	Router,
 	body::Body,
@@ -40,21 +43,49 @@ async fn main() {
 	};
 	metrics::init();
 
-	async fn metrics_handler() -> Response {
-		match metrics::gather_prometheus_text() {
-			Ok((body, ctype)) => Response::builder()
-				.status(StatusCode::OK)
-				.header(header::CONTENT_TYPE, ctype)
-				.body(Body::from(body))
-				.unwrap_or_else(|_| Response::new(Body::empty())),
-			Err(_) => Response::builder()
-				.status(StatusCode::INTERNAL_SERVER_ERROR)
-				.body(Body::empty())
-				.unwrap_or_else(|_| Response::new(Body::empty())),
-		}
-	}
+	let app = router(state);
 
-	let app = Router::new()
+	let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
+	let addr: SocketAddr = format!("0.0.0.0:{}", port)
+		.parse()
+		.expect("Invalid address");
+
+	tracing::info!("Listening on {}", addr);
+	let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+	axum::serve(listener, app).await.unwrap();
+}
+
+async fn setup_database() -> PgPool {
+	let user = std::env::var("DB_USER").expect("DB_USER must be set");
+	let password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD must be set");
+	let db_name = std::env::var("DB_NAME").expect("DB_NAME must be set");
+	let db_host = std::env::var("DB_HOST").unwrap_or_else(|_| "postgres".to_string());
+	let db_url = format!("postgresql://{}:{}@{}/{}", user, password, db_host, db_name);
+
+	tracing::info!("Connecting to database at {}:5432/{}", db_host, db_name);
+
+	PgPool::connect(&db_url)
+		.await
+		.expect("Failed to create pool.")
+}
+
+async fn metrics_handler() -> Response {
+	match metrics::gather_prometheus_text() {
+		Ok((body, ctype)) => Response::builder()
+			.status(StatusCode::OK)
+			.header(header::CONTENT_TYPE, ctype)
+			.body(Body::from(body))
+			.unwrap_or_else(|_| Response::new(Body::empty())),
+		Err(_) => Response::builder()
+			.status(StatusCode::INTERNAL_SERVER_ERROR)
+			.body(Body::empty())
+			.unwrap_or_else(|_| Response::new(Body::empty())),
+	}
+}
+
+/// All routes. Every handler trusts `X-User-Id`, which nginx sets after `auth_request`.
+pub fn router(state: AppState) -> Router {
+	Router::new()
 		.route("/metrics", get(metrics_handler))
 		.route(
 			"/api/notes",
@@ -87,28 +118,5 @@ async fn main() {
 			"/api/notes/collab/revoke/{share_id}",
 			delete(share_handlers::revoke_share),
 		)
-		.with_state(state);
-
-	let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
-	let addr: SocketAddr = format!("0.0.0.0:{}", port)
-		.parse()
-		.expect("Invalid address");
-
-	tracing::info!("Listening on {}", addr);
-	let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-	axum::serve(listener, app).await.unwrap();
-}
-
-async fn setup_database() -> PgPool {
-	let user = std::env::var("DB_USER").expect("DB_USER must be set");
-	let password = std::env::var("DB_PASSWORD").expect("DB_PASSWORD must be set");
-	let db_name = std::env::var("DB_NAME").expect("DB_NAME must be set");
-	let db_host = std::env::var("DB_HOST").unwrap_or_else(|_| "postgres".to_string());
-	let db_url = format!("postgresql://{}:{}@{}/{}", user, password, db_host, db_name);
-
-	tracing::info!("Connecting to database at {}:5432/{}", db_host, db_name);
-
-	PgPool::connect(&db_url)
-		.await
-		.expect("Failed to create pool.")
+		.with_state(state)
 }
