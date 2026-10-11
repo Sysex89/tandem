@@ -1,0 +1,5 @@
+# Bulk formatting commits, skipped by `git blame` (GitHub reads this file automatically;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs)
+
+# style: format Rust services with rustfmt
+aba42fdab1b8995800bf88491101aed7d26d8c75

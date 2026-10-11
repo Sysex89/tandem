@@ -1,6 +1,6 @@
 use crate::AppState;
 use crate::metrics;
-use crate::models::{CreateNote, Note, NoteExport};
+use crate::models::{CreateNote, EditTitlePayload, Note, NoteExport};
 use axum::{
 	Json,
 	extract::{Path, State},
@@ -115,7 +115,7 @@ pub async fn post_note(
 	})?;
 
 	// Generate a unique slug for the owner_url
-	let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, None)
+	let slug = generate_unique_slug(&mut tx, user_id, &payload.title, None)
 		.await
 		.map_err(|e| {
 			tracing::error!("Failed to generate unique slug: {}", e);
@@ -215,7 +215,7 @@ pub async fn edit_title(
 	State(state): State<AppState>,
 	Path(id): Path<Uuid>,
 	headers: HeaderMap,
-	Json(payload): Json<CreateNote>,
+	Json(payload): Json<EditTitlePayload>,
 ) -> Result<Json<Note>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
@@ -232,7 +232,7 @@ pub async fn edit_title(
 		)
 	})?;
 
-	let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, Some(id))
+	let slug = generate_unique_slug(&mut tx, user_id, &payload.title, Some(id))
 		.await
 		.map_err(|e| {
 			tracing::error!("Failed to generate unique slug for update: {}", e);
@@ -363,7 +363,7 @@ pub async fn generate_unique_slug(
 		if exclude_id.is_some() {
 			query.push_str(" AND id != $3");
 		}
-		query.push_str(")");
+		query.push(')');
 
 		let mut q = sqlx::query_scalar::<_, bool>(&query)
 			.bind(owner_id)

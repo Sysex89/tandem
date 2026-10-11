@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [notes, editor]
+    defaults:
+      run:
+        working-directory: srcs/requirements/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: srcs/requirements/${{ matrix.service }}
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  auth:
+    name: Auth (build + integration tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: srcs/requirements/auth
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: auth
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: auth
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U auth"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      AUTH_DB_USER: auth
+      AUTH_DB_NAME: auth
+      POSTGRES_ADDR: localhost:5432
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # src/db/connections.ts reads the password from secrets/ when not running in Docker.
+      - run: mkdir -p secrets && printf 'ci-password' > secrets/auth_db_password
+      - run: pnpm test --run
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: srcs/requirements/frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  infra:
+    name: Compose + nginx config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Also exercises the demo setup script.
+      - run: ./scripts/demo-setup.sh
+      - run: docker compose -f srcs/docker-compose.yml config --quiet
+      - run: docker compose -f srcs/docker-compose-dev.yml config --quiet
+      - name: nginx -t
+        run: |
+          docker build -q -t ci-nginx srcs/requirements/nginx
+          # grafana is proxied without a variable, so nginx resolves it at startup.
+          docker run --rm --add-host grafana:127.0.0.1 ci-nginx nginx -t

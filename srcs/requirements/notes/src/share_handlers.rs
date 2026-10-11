@@ -183,10 +183,10 @@ pub async fn create_share(
 	.fetch_one(&state.db_pool)
 	.await
 	.map_err(|e| {
-		if let Some(db_err) = e.as_database_error() {
-			if db_err.is_unique_violation() {
-				return StatusCode::CONFLICT;
-			}
+		if let Some(db_err) = e.as_database_error()
+			&& db_err.is_unique_violation()
+		{
+			return StatusCode::CONFLICT;
 		}
 		StatusCode::INTERNAL_SERVER_ERROR
 	})?;

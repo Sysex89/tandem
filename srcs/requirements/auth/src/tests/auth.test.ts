@@ -32,7 +32,7 @@ describe("Auth Routes (Integration)", () => {
 			sessionSecret: "a_very_long_test_secret_key_that_is_32_bytes",
 			callbackUri: "http://localhost:8080/cb",
 			frontendUrl: "http://localhost:8080",
-			runMigrations: false, // Assume DB is already migrated in dev
+			runMigrations: true, // No-op when already migrated; lets the suite run on a fresh database
 		};
 
 		server = await buildServer(config);

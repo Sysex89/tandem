@@ -184,7 +184,10 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 		tracing::info!("Last user left room {}. Saving to DB...", note_id);
 
 		let doc_lock = room.doc.read().await;
-		if let Err(_) = db::save_note(&state.pool, note_id, &doc_lock).await {
+		if db::save_note(&state.pool, note_id, &doc_lock)
+			.await
+			.is_err()
+		{
 			tracing::error!("Failed to save note {} to DB upon closing.", note_id);
 		}
 

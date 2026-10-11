@@ -1,5 +1,7 @@
 # Mycelium Notes
 
+[![CI](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml/badge.svg)](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml)
+
 A self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
 
 ![Two users editing the same note, each seeing the other's live cursor](DOCS/img/collaboration.png)
