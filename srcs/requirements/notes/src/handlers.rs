@@ -1,9 +1,14 @@
-use axum::{extract::{State, Path}, http::HeaderMap, http::StatusCode, Json};
+use crate::AppState;
+use crate::metrics;
+use crate::models::{CreateNote, Note, NoteExport};
+use axum::{
+	Json,
+	extract::{Path, State},
+	http::HeaderMap,
+	http::StatusCode,
+};
 use serde::Serialize;
 use uuid::Uuid;
-use crate::metrics;
-use crate::models::{Note, CreateNote, NoteExport};
-use crate::AppState;
 
 #[derive(Serialize)]
 pub(crate) struct ErrorResponse {
@@ -29,13 +34,17 @@ fn error_response(state: &AppState, locale: &str, status: StatusCode, key: &str)
 }
 
 pub fn get_user_id(headers: &HeaderMap) -> Result<Uuid, ()> {
-	headers.get("X-User-Id")
+	headers
+		.get("X-User-Id")
 		.and_then(|v| v.to_str().ok())
 		.and_then(|v| Uuid::parse_str(v).ok())
 		.ok_or(())
 }
 
-pub async fn get_all_notes(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<Vec<Note>>, ApiError> {
+pub async fn get_all_notes(
+	State(state): State<AppState>,
+	headers: HeaderMap,
+) -> Result<Json<Vec<Note>>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
@@ -52,7 +61,11 @@ pub async fn get_all_notes(State(state): State<AppState>, headers: HeaderMap) ->
 	Ok(Json(notes))
 }
 
-pub async fn get_note(State(state): State<AppState>, Path(id): Path<Uuid>, headers: HeaderMap) -> Result<Json<Note>, ApiError> {
+pub async fn get_note(
+	State(state): State<AppState>,
+	Path(id): Path<Uuid>,
+	headers: HeaderMap,
+) -> Result<Json<Note>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
@@ -65,34 +78,54 @@ pub async fn get_note(State(state): State<AppState>, Path(id): Path<Uuid>, heade
 		.map_err(|e| {
 			tracing::error!("Failed to fetch note {}: {}", id, e);
 			error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
-		})?; 
+		})?;
 
 	match note {
 		Some(note) => Ok(Json(note)),
 		None => {
 			tracing::warn!("Note {} not found for user {}", id, user_id);
-			Err(error_response(&state, &locale, StatusCode::NOT_FOUND, "note-not-found"))
+			Err(error_response(
+				&state,
+				&locale,
+				StatusCode::NOT_FOUND,
+				"note-not-found",
+			))
 		}
 	}
 }
 
-pub async fn post_note(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<CreateNote>) -> Result<Json<Note>, ApiError> {
+pub async fn post_note(
+	State(state): State<AppState>,
+	headers: HeaderMap,
+	Json(payload): Json<CreateNote>,
+) -> Result<Json<Note>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
 	tracing::info!("Creating new note: {} for user {}", payload.title, user_id);
-	
+
 	let mut tx = state.db_pool.begin().await.map_err(|e| {
 		tracing::error!("Failed to begin transaction: {}", e);
-		error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+		error_response(
+			&state,
+			&locale,
+			StatusCode::INTERNAL_SERVER_ERROR,
+			"internal-error",
+		)
 	})?;
 
-    // Generate a unique slug for the owner_url
-    let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, None).await.map_err(|e| {
-        tracing::error!("Failed to generate unique slug: {}", e);
-        error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
-    })?;
-
+	// Generate a unique slug for the owner_url
+	let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, None)
+		.await
+		.map_err(|e| {
+			tracing::error!("Failed to generate unique slug: {}", e);
+			error_response(
+				&state,
+				&locale,
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"internal-error",
+			)
+		})?;
 
 	let note = sqlx::query_as::<_, Note>(
 		"INSERT INTO notes (title, owner_id, owner_url) VALUES ($1, $2, $3) RETURNING id, title, owner_id, owner_url, created_at, updated_at",
@@ -108,20 +141,30 @@ pub async fn post_note(State(state): State<AppState>, headers: HeaderMap, Json(p
 	})?;
 
 	let empty_state = vec![0u8, 0u8];
-	
+
 	sqlx::query("INSERT INTO note_states (note_id, state_vector) VALUES ($1, $2)")
 		.bind(note.id)
-		.bind(&empty_state) 
+		.bind(&empty_state)
 		.execute(&mut *tx)
 		.await
 		.map_err(|e| {
 			tracing::error!("Failed to insert note state: {}", e);
-			error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+			error_response(
+				&state,
+				&locale,
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"internal-error",
+			)
 		})?;
 
 	tx.commit().await.map_err(|e| {
 		tracing::error!("Failed to commit transaction: {}", e);
-		error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+		error_response(
+			&state,
+			&locale,
+			StatusCode::INTERNAL_SERVER_ERROR,
+			"internal-error",
+		)
 	})?;
 
 	metrics::inc_mutation("create");
@@ -129,7 +172,11 @@ pub async fn post_note(State(state): State<AppState>, headers: HeaderMap, Json(p
 	Ok(Json(note))
 }
 
-pub async fn del_note(State(state): State<AppState>, Path(id): Path<Uuid>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
+pub async fn del_note(
+	State(state): State<AppState>,
+	Path(id): Path<Uuid>,
+	headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
@@ -141,12 +188,22 @@ pub async fn del_note(State(state): State<AppState>, Path(id): Path<Uuid>, heade
 		.await
 		.map_err(|e| {
 			tracing::error!("Failed to delete note {}: {}", id, e);
-			error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+			error_response(
+				&state,
+				&locale,
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"internal-error",
+			)
 		})?;
 
 	if result.rows_affected() == 0 {
 		tracing::warn!("Note {} not found for deletion (or not owned by user)", id);
-		return Err(error_response(&state, &locale, StatusCode::NOT_FOUND, "note-not-found"));
+		return Err(error_response(
+			&state,
+			&locale,
+			StatusCode::NOT_FOUND,
+			"note-not-found",
+		));
 	}
 
 	metrics::inc_mutation("delete");
@@ -154,21 +211,38 @@ pub async fn del_note(State(state): State<AppState>, Path(id): Path<Uuid>, heade
 	Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn edit_title(State(state): State<AppState>, Path(id): Path<Uuid>, headers: HeaderMap, Json(payload): Json<CreateNote>) -> Result<Json<Note>, ApiError> {
+pub async fn edit_title(
+	State(state): State<AppState>,
+	Path(id): Path<Uuid>,
+	headers: HeaderMap,
+	Json(payload): Json<CreateNote>,
+) -> Result<Json<Note>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
 	tracing::info!("Updating title for note {}: {}", id, payload.title);
-	
+
 	let mut tx = state.db_pool.begin().await.map_err(|e| {
 		tracing::error!("Failed to begin transaction: {}", e);
-		error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+		error_response(
+			&state,
+			&locale,
+			StatusCode::INTERNAL_SERVER_ERROR,
+			"internal-error",
+		)
 	})?;
 
-    let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, Some(id)).await.map_err(|e| {
-        tracing::error!("Failed to generate unique slug for update: {}", e);
-        error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
-    })?;
+	let slug = generate_unique_slug(&mut *tx, user_id, &payload.title, Some(id))
+		.await
+		.map_err(|e| {
+			tracing::error!("Failed to generate unique slug for update: {}", e);
+			error_response(
+				&state,
+				&locale,
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"internal-error",
+			)
+		})?;
 
 	let note = sqlx::query_as::<_, Note>(
 		"UPDATE notes SET title = $1, owner_url = $2, updated_at = NOW() WHERE id = $3 AND owner_id = $4 RETURNING id, title, owner_id, owner_url, created_at, updated_at"
@@ -182,25 +256,38 @@ pub async fn edit_title(State(state): State<AppState>, Path(id): Path<Uuid>, hea
 		.map_err(|e| {
 			tracing::error!("Failed to update note {}: {}", id, e);
 			error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
-		})?; 
+		})?;
 
 	match note {
 		Some(note) => {
 			tx.commit().await.map_err(|e| {
 				tracing::error!("Failed to commit transaction: {}", e);
-				error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+				error_response(
+					&state,
+					&locale,
+					StatusCode::INTERNAL_SERVER_ERROR,
+					"internal-error",
+				)
 			})?;
 			tracing::info!("Note {} updated successfully", id);
 			Ok(Json(note))
-		},
+		}
 		None => {
 			tracing::warn!("Note {} not found for update", id);
-			Err(error_response(&state, &locale, StatusCode::NOT_FOUND, "note-not-found"))
+			Err(error_response(
+				&state,
+				&locale,
+				StatusCode::NOT_FOUND,
+				"note-not-found",
+			))
 		}
 	}
 }
 
-pub async fn del_notes_by_owner(State(state): State<AppState>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
+pub async fn del_notes_by_owner(
+	State(state): State<AppState>,
+	headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
@@ -212,13 +299,21 @@ pub async fn del_notes_by_owner(State(state): State<AppState>, headers: HeaderMa
 		.await
 		.map_err(|e| {
 			tracing::error!("Failed to delete notes for user {}: {}", user_id, e);
-			error_response(&state, &locale, StatusCode::INTERNAL_SERVER_ERROR, "internal-error")
+			error_response(
+				&state,
+				&locale,
+				StatusCode::INTERNAL_SERVER_ERROR,
+				"internal-error",
+			)
 		})?;
 
 	Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn export_notes(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<Vec<NoteExport>>, ApiError> {
+pub async fn export_notes(
+	State(state): State<AppState>,
+	headers: HeaderMap,
+) -> Result<Json<Vec<NoteExport>>, ApiError> {
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
@@ -240,49 +335,51 @@ pub async fn export_notes(State(state): State<AppState>, headers: HeaderMap) -> 
 }
 
 pub fn slugify(title: &str) -> String {
-    title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
+	title
+		.to_lowercase()
+		.chars()
+		.map(|c| if c.is_alphanumeric() { c } else { '-' })
+		.collect::<String>()
+		.split('-')
+		.filter(|s| !s.is_empty())
+		.collect::<Vec<_>>()
+		.join("-")
 }
 
 pub async fn generate_unique_slug(
-    tx: &mut sqlx::PgConnection,
-    owner_id: Uuid,
-    title: &str,
-    exclude_id: Option<Uuid>
+	tx: &mut sqlx::PgConnection,
+	owner_id: Uuid,
+	title: &str,
+	exclude_id: Option<Uuid>,
 ) -> Result<String, sqlx::Error> {
-    let base_slug = slugify(title);
-    let mut slug = base_slug.clone();
-    let mut count = 1;
+	let base_slug = slugify(title);
+	let mut slug = base_slug.clone();
+	let mut count = 1;
 
-    loop {
-        let mut query = String::from("SELECT EXISTS(SELECT 1 FROM notes WHERE owner_id = $1 AND owner_url = $2");
-        if exclude_id.is_some() {
-            query.push_str(" AND id != $3");
-        }
-        query.push_str(")");
+	loop {
+		let mut query = String::from(
+			"SELECT EXISTS(SELECT 1 FROM notes WHERE owner_id = $1 AND owner_url = $2",
+		);
+		if exclude_id.is_some() {
+			query.push_str(" AND id != $3");
+		}
+		query.push_str(")");
 
-        let mut q = sqlx::query_scalar::<_, bool>(&query)
-            .bind(owner_id)
-            .bind(&slug);
+		let mut q = sqlx::query_scalar::<_, bool>(&query)
+			.bind(owner_id)
+			.bind(&slug);
 
-        if let Some(id) = exclude_id {
-            q = q.bind(id);
-        }
+		if let Some(id) = exclude_id {
+			q = q.bind(id);
+		}
 
-        if !q.fetch_one(&mut *tx).await? {
-            break;
-        }
+		if !q.fetch_one(&mut *tx).await? {
+			break;
+		}
 
-        slug = format!("{}-{}", base_slug, count);
-        count += 1;
-    }
+		slug = format!("{}-{}", base_slug, count);
+		count += 1;
+	}
 
-    Ok(slug)
+	Ok(slug)
 }

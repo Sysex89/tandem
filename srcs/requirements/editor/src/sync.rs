@@ -1,9 +1,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use yrs::{Doc, ReadTxn, Transact, Update};
-use yrs::updates::decoder::Decode;
-use yrs::updates::encoder::{Encode, Encoder, EncoderV1};
 use y_sync::awareness::Awareness;
 use y_sync::sync::{Message, SyncMessage};
+use yrs::updates::decoder::Decode;
+use yrs::updates::encoder::{Encode, Encoder, EncoderV1};
+use yrs::{Doc, ReadTxn, Transact, Update};
 
 // the brain of the CRDT logic
 pub async fn process_binary_message(
@@ -12,11 +12,10 @@ pub async fn process_binary_message(
 	awareness: &tokio::sync::RwLock<Awareness>,
 	dirty: &AtomicBool,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-
 	// get raw message and tranform it into our internal Message struct (which can be a Sync message or a Awareness message)
 	let msg = Message::decode_v1(msg_bytes)?;
 
-	// we will write the response into this encoder, which we will then turn into bytes at the end. If we dont have to respond, it will just be empty 
+	// we will write the response into this encoder, which we will then turn into bytes at the end. If we dont have to respond, it will just be empty
 	let mut response_encoder = EncoderV1::new();
 
 	// main logic: if msg is a sync message, we apply it to the doc. If its an awareness message, we apply it to the awareness. Maybe future auth logic.

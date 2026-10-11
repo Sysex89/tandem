@@ -1,12 +1,12 @@
+use axum::extract::ws::Message;
 use dashmap::DashMap;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tokio::sync::{RwLock, mpsc::UnboundedSender};
 use uuid::Uuid;
-use yrs::Doc;
 use y_sync::awareness::Awareness;
-use axum::extract::ws::Message;
+use yrs::Doc;
 
 //	Represents an active document in RAM
 pub struct DocumentRoom {

@@ -1,13 +1,13 @@
+use crate::models::SavedNoteState;
 use sqlx::PgPool;
 use uuid::Uuid;
 use yrs::{Doc, ReadTxn, StateVector, Transact, Update, updates::decoder::Decode};
-use crate::models::SavedNoteState;
 
 // loads state of a note from the database and applies it to a new yrs::Doc, which is then returned. This is called when a new client connects to load the current state of the document.
 pub async fn load_note(pool: &PgPool, note_id: Uuid) -> Result<Doc, ()> {
 	// get blob
 	let result = sqlx::query_as::<_, SavedNoteState>(
-		"SELECT state_vector FROM note_states WHERE note_id = $1"
+		"SELECT state_vector FROM note_states WHERE note_id = $1",
 	)
 	.bind(note_id)
 	.fetch_optional(pool)
@@ -45,7 +45,7 @@ pub async fn check_access(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> bool {
 		"SELECT 1 FROM notes WHERE id = $1 AND owner_id = $2
 		 UNION ALL
 		 SELECT 1 FROM share WHERE note_id = $1 AND (guest_id = $2 OR guest_id IS NULL)
-		 LIMIT 1"
+		 LIMIT 1",
 	)
 	.bind(note_id)
 	.bind(user_id)
@@ -64,7 +64,7 @@ pub async fn save_note(pool: &PgPool, note_id: Uuid, doc: &Doc) -> Result<(), ()
 
 	// save to db
 	sqlx::query(
-		"UPDATE note_states SET state_vector = $1, last_saved_at = NOW() WHERE note_id = $2"
+		"UPDATE note_states SET state_vector = $1, last_saved_at = NOW() WHERE note_id = $2",
 	)
 	.bind(&state_blob)
 	.bind(note_id)

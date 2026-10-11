@@ -1,16 +1,16 @@
-mod metrics;
-mod models;
 mod handlers;
 mod i18n;
+mod metrics;
+mod models;
 mod share_handlers;
 mod slug_handlers;
 
 use axum::{
+	Router,
 	body::Body,
-	http::{header, StatusCode},
+	http::{StatusCode, header},
 	response::Response,
 	routing::{delete, get, post},
-	Router,
 };
 use sqlx::PgPool;
 use std::net::SocketAddr;
@@ -26,8 +26,10 @@ pub struct AppState {
 async fn main() {
 	// Initialize tracing
 	tracing_subscriber::registry()
-		.with(tracing_subscriber::EnvFilter::try_from_default_env()
-			.unwrap_or_else(|_| "notes=debug,tower_http=debug,axum::rejection=trace".into()))
+		.with(
+			tracing_subscriber::EnvFilter::try_from_default_env()
+				.unwrap_or_else(|_| "notes=debug,tower_http=debug,axum::rejection=trace".into()),
+		)
 		.with(tracing_subscriber::fmt::layer())
 		.init();
 
@@ -54,22 +56,44 @@ async fn main() {
 
 	let app = Router::new()
 		.route("/metrics", get(metrics_handler))
-		.route("/api/notes", get(handlers::get_all_notes).post(handlers::post_note))
-		.route("/api/notes/{id}", get(handlers::get_note).delete(handlers::del_note).put(handlers::edit_title))
+		.route(
+			"/api/notes",
+			get(handlers::get_all_notes).post(handlers::post_note),
+		)
+		.route(
+			"/api/notes/{id}",
+			get(handlers::get_note)
+				.delete(handlers::del_note)
+				.put(handlers::edit_title),
+		)
 		.route("/api/notes/by-owner", delete(handlers::del_notes_by_owner))
 		.route("/api/notes/export", get(handlers::export_notes))
 		.route("/api/notes/u/{slug}", get(slug_handlers::get_note_by_slug))
-		.route("/api/notes/collab/received", get(share_handlers::shared_with_me))
+		.route(
+			"/api/notes/collab/received",
+			get(share_handlers::shared_with_me),
+		)
 		.route("/api/notes/collab/", post(share_handlers::create_share))
-		.route("/api/notes/collab/access/{share_id}", get(share_handlers::open_share))
+		.route(
+			"/api/notes/collab/access/{share_id}",
+			get(share_handlers::open_share),
+		)
 		.route("/api/notes/collab/created", get(share_handlers::my_shares))
-		.route("/api/notes/collab/{note_id}", get(share_handlers::note_collaborators))
-		.route("/api/notes/collab/revoke/{share_id}", delete(share_handlers::revoke_share))
+		.route(
+			"/api/notes/collab/{note_id}",
+			get(share_handlers::note_collaborators),
+		)
+		.route(
+			"/api/notes/collab/revoke/{share_id}",
+			delete(share_handlers::revoke_share),
+		)
 		.with_state(state);
 
 	let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
-	let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().expect("Invalid address");
-	
+	let addr: SocketAddr = format!("0.0.0.0:{}", port)
+		.parse()
+		.expect("Invalid address");
+
 	tracing::info!("Listening on {}", addr);
 	let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 	axum::serve(listener, app).await.unwrap();
@@ -81,9 +105,9 @@ async fn setup_database() -> PgPool {
 	let db_name = std::env::var("DB_NAME").expect("DB_NAME must be set");
 	let db_host = std::env::var("DB_HOST").unwrap_or_else(|_| "postgres".to_string());
 	let db_url = format!("postgresql://{}:{}@{}/{}", user, password, db_host, db_name);
-	
+
 	tracing::info!("Connecting to database at {}:5432/{}", db_host, db_name);
-	
+
 	PgPool::connect(&db_url)
 		.await
 		.expect("Failed to create pool.")
