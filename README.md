@@ -2,7 +2,7 @@
 
 A self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
 
-<!-- TODO: screenshot / GIF of two cursors editing the same note -->
+![Two users editing the same note, each seeing the other's live cursor](DOCS/img/collaboration.png)
 
 ## Features
 
@@ -49,6 +49,27 @@ More detail: [database schema](DOCS/reference/database-schema.md), [monitoring a
 | Infra | Docker Compose, nginx, Prometheus, Grafana, nginx/Postgres exporters |
 
 ## Running locally
+
+### Quick demo
+
+Requirements: Docker with Compose v2 and GNU Make.
+
+```bash
+make demo
+```
+
+This generates `srcs/.env` and `srcs/secrets/` (existing files are left untouched), starts the stack, and creates two users who share a note:
+
+| User | Password |
+| --- | --- |
+| `alice` | `mycelium-demo` |
+| `bob` | `mycelium-demo` |
+
+Open **https://localhost:8443**, accept the self-signed certificate, and log in as each user in two different browsers (or a normal and a private window) to watch edits and cursors sync live. GitHub login is disabled in the demo.
+
+`scripts/screenshot.mjs` regenerates the screenshot above against a running demo.
+
+### Full setup (with GitHub login)
 
 Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https://github.com/settings/developers) with the callback URL `https://localhost:8443/api/auth/login/github/callback`.
 

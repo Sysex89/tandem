@@ -48,3 +48,4 @@ grafana-prometheus-review.md
 *.png
 
 CLAUDE.md
+!DOCS/img/*.png

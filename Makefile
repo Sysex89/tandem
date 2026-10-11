@@ -55,6 +55,13 @@ wipe: fclean
 
 re: clean up
 
+# One-command local demo: generates .env and secrets if missing, starts the
+# stack and seeds two users sharing a note. GitHub login is disabled.
+demo:
+	@./scripts/demo-setup.sh
+	$(COMPOSE) up -d --build $(FLAGS)
+	@./scripts/demo-seed.sh
+
 dev:
 	docker compose -f srcs/docker-compose-dev.yml up -d --build $(FLAGS)
 
@@ -68,4 +75,4 @@ logs:
 getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
 
-.PHONY: all up live down clean cleanv fclean wipe re dev rebuild logs getlogs
+.PHONY: all up live down clean cleanv fclean wipe re demo dev rebuild logs getlogs
