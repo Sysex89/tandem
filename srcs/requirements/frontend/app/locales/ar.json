@@ -75,6 +75,7 @@
 	"noteEditor.placeholder": "ابدأ الكتابة...",
 	"noteEditor.collaborators": "المتعاونون",
 	"noteEditor.anonymous": "مجهول",
+	"noteEditor.viewOnly": "عرض فقط",
 	"nav.helloUser": "مرحبًا، {name}!",
 	"notes.sidebar.show": "إظهار الشريط الجانبي",
 	"notes.sidebar.hide": "إخفاء الشريط الجانبي",

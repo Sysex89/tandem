@@ -99,6 +99,13 @@ html.theme-transition *::after {
 	border-top: 1px solid var(--p-surface-800);
 }
 
+.editor-status-readonly {
+	padding: 0.0625rem 0.5rem;
+	margin-inline-end: 0.5rem;
+	border-radius: 999px;
+	border: 1px solid var(--p-surface-400);
+}
+
 .editor-status-dot {
 	width: 6px;
 	height: 6px;

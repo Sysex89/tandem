@@ -1,4 +1,4 @@
-use crate::models::SavedNoteState;
+use crate::models::{Access, SavedNoteState};
 use sqlx::PgPool;
 use uuid::Uuid;
 use yrs::{Doc, ReadTxn, StateVector, Transact, Update, updates::decoder::Decode};
@@ -38,20 +38,28 @@ pub async fn load_note(pool: &PgPool, note_id: Uuid) -> Result<Doc, ()> {
 	Ok(doc)
 }
 
-pub async fn check_access(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> bool {
-	// Owner OR shared guest (private share or public link)
-	sqlx::query(
-		"SELECT 1 FROM notes WHERE id = $1 AND owner_id = $2
+/// Owner, or a guest via a private share or public link. The most permissive
+/// matching role wins; `None` means no access (or a database error).
+pub async fn access_level(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> Option<Access> {
+	let roles: Vec<String> = sqlx::query_scalar(
+		"SELECT 'Owner' FROM notes WHERE id = $1 AND owner_id = $2
 		 UNION ALL
-		 SELECT 1 FROM share WHERE note_id = $1 AND (guest_id = $2 OR guest_id IS NULL)
-		 LIMIT 1",
+		 SELECT access_role::text FROM share WHERE note_id = $1 AND (guest_id = $2 OR guest_id IS NULL)",
 	)
 	.bind(note_id)
 	.bind(user_id)
-	.fetch_optional(pool)
+	.fetch_all(pool)
 	.await
-	.map(|r| r.is_some())
-	.unwrap_or(false)
+	.map_err(|e| tracing::error!("DB Error checking access to note {}: {}", note_id, e))
+	.ok()?;
+
+	if roles.iter().any(|r| r == "Owner" || r == "Edit") {
+		Some(Access::ReadWrite)
+	} else if roles.iter().any(|r| r == "View") {
+		Some(Access::ReadOnly)
+	} else {
+		None
+	}
 }
 
 pub async fn save_note(pool: &PgPool, note_id: Uuid, doc: &Doc) -> Result<(), ()> {

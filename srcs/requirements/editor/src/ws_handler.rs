@@ -15,6 +15,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::db;
+use crate::models::Access;
 use crate::state::{AppState, DocumentRoom};
 use crate::sync;
 
@@ -38,16 +39,22 @@ pub async fn ws_route(
 		None => return StatusCode::UNAUTHORIZED.into_response(),
 	};
 
-	// Check ownership or share access
-	if !db::check_access(&state.pool, note_id, user_id).await {
+	// Check ownership or share access (and whether the user may edit)
+	let Some(access) = db::access_level(&state.pool, note_id, user_id).await else {
 		return StatusCode::FORBIDDEN.into_response();
-	}
+	};
 
 	// Upgrade to WebSocket
-	ws.on_upgrade(move |socket| handle_socket(socket, note_id, state, user_id))
+	ws.on_upgrade(move |socket| handle_socket(socket, note_id, state, user_id, access))
 }
 
-async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, user_id: Uuid) {
+async fn handle_socket(
+	socket: WebSocket,
+	note_id: Uuid,
+	state: Arc<AppState>,
+	user_id: Uuid,
+	access: Access,
+) {
 	// Find existing room, or load from DB and atomically insert via the entry API
 	// to prevent a race where two connections both create a room for the same note.
 	let room = if let Some(existing_room) = state.rooms.get(&note_id) {
@@ -133,6 +140,7 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 	let room_clone = room.clone();
 	let state_recv = state.clone();
 	let mut recv_task = tokio::spawn(async move {
+		let mut access = access;
 		let mut access_check = tokio::time::interval(std::time::Duration::from_secs(15));
 		// the first tick fires immediately; skip it (we already checked on upgrade)
 		access_check.tick().await;
@@ -143,7 +151,7 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 					let Some(Ok(msg)) = maybe_msg else { break };
 					if let Message::Binary(bytes) = msg {
 						// give raw bytes to the sync logic. If we get a response (OK + non empty), we broadcast it.
-						match sync::process_binary_message(&bytes, &room_clone.doc, &room_clone.awareness, &room_clone.dirty).await {
+						match sync::process_binary_message(&bytes, &room_clone.doc, &room_clone.awareness, &room_clone.dirty, access).await {
 							Ok(response_bytes) => {
 								if !response_bytes.is_empty() {
 									let broadcast_msg = Message::Binary(response_bytes.into());
@@ -162,9 +170,13 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 					}
 				}
 				_ = access_check.tick() => {
-					if !db::check_access(&state_recv.pool, note_id, user_id).await {
-						tracing::info!("Access revoked for user {} on note {}, closing client {}", user_id, note_id, client_id);
-						break;
+					match db::access_level(&state_recv.pool, note_id, user_id).await {
+						// picks up role changes too, e.g. Edit downgraded to View
+						Some(level) => access = level,
+						None => {
+							tracing::info!("Access revoked for user {} on note {}, closing client {}", user_id, note_id, client_id);
+							break;
+						}
 					}
 				}
 			}

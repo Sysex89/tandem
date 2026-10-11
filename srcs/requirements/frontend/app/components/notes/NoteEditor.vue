@@ -15,6 +15,8 @@ const props = defineProps<{
   noteId: string;
   // Title stored in the notes service; shown until the shared title has been set.
   fallbackTitle?: string;
+  // View-only share: the editor service drops this user's edits, so don't offer editing.
+  readOnly?: boolean;
 }>();
 
 const noteStore = useNoteStore();
@@ -33,6 +35,7 @@ watchEffect((onCleanup) => {
   const renderCaret = createCaretRenderer(prov.awareness) as (user: Record<string, any>) => HTMLElement;
 
   const ed = new Editor({
+    editable: !props.readOnly,
     extensions: [
       StarterKit.configure({ undoRedo: false }),
       Placeholder.configure({ placeholder: t('noteEditor.placeholder') }),
@@ -81,6 +84,7 @@ function focusEditorEnd(event: MouseEvent) {
       <input
         ref="titleInput"
         :value="titleText"
+        :readonly="readOnly"
         @input="updateTitle(($event.target as HTMLInputElement).value)"
         @keydown.enter.prevent="editor?.commands.focus('start')"
         :placeholder="fallbackTitle || t('notes.untitled')"
@@ -88,9 +92,12 @@ function focusEditorEnd(event: MouseEvent) {
       />
       <EditorContent :editor="editor" class="tiptap-editor" />
     </div>
-    <div v-if="connectedUsers > 1" class="editor-status">
-      <span class="editor-status-dot" />
-      {{ connectedUsers }} {{ t('noteEditor.collaborators') }}
+    <div v-if="readOnly || connectedUsers > 1" class="editor-status">
+      <span v-if="readOnly" class="editor-status-readonly">{{ t('noteEditor.viewOnly') }}</span>
+      <template v-if="connectedUsers > 1">
+        <span class="editor-status-dot" />
+        {{ connectedUsers }} {{ t('noteEditor.collaborators') }}
+      </template>
     </div>
   </div>
   </div>

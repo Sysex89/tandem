@@ -75,6 +75,7 @@
 	"noteEditor.placeholder": "Tosaigh ag scríobh...",
 	"noteEditor.collaborators": "comhoibrithe",
 	"noteEditor.anonymous": "Gan ainm",
+	"noteEditor.viewOnly": "Féachaint amháin",
 	"nav.helloUser": "Dia dhuit, {name}!",
 	"notes.sidebar.show": "Taispeáin an barra taoibh",
 	"notes.sidebar.hide": "Folaigh an barra taoibh",

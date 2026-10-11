@@ -1,3 +1,4 @@
+use crate::models::Access;
 use std::sync::atomic::{AtomicBool, Ordering};
 use y_sync::awareness::Awareness;
 use y_sync::sync::{Message, SyncMessage};
@@ -11,6 +12,7 @@ pub async fn process_binary_message(
 	doc: &tokio::sync::RwLock<Doc>,
 	awareness: &tokio::sync::RwLock<Awareness>,
 	dirty: &AtomicBool,
+	access: Access,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 	// get raw message and tranform it into our internal Message struct (which can be a Sync message or a Awareness message)
 	let msg = Message::decode_v1(msg_bytes)?;
@@ -29,6 +31,10 @@ pub async fn process_binary_message(
 				SyncMessage::SyncStep1(state_vector) => {
 					let update = txn.encode_state_as_update_v1(&state_vector);
 					Message::Sync(SyncMessage::SyncStep2(update)).encode(&mut response_encoder);
+				}
+				SyncMessage::SyncStep2(_) | SyncMessage::Update(_) if !access.can_write() => {
+					// Read-only client: drop its edits, never apply or broadcast them.
+					tracing::debug!("Dropped document update from read-only client");
 				}
 				SyncMessage::SyncStep2(update_data) | SyncMessage::Update(update_data) => {
 					let update = Update::decode_v1(&update_data)?;
@@ -73,4 +79,105 @@ pub async fn generate_initial_awareness(awareness: &tokio::sync::RwLock<Awarenes
 	let mut encoder = EncoderV1::new();
 	Message::Awareness(update).encode(&mut encoder);
 	encoder.to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use tokio::sync::RwLock;
+	use yrs::{GetString, StateVector, Text};
+
+	/// A Yjs update, encoded as a y-sync message, that inserts `text` into "body".
+	fn client_update(text: &str) -> Vec<u8> {
+		let client = Doc::new();
+		let body = client.get_or_insert_text("body");
+		body.insert(&mut client.transact_mut(), 0, text);
+		let update = client
+			.transact()
+			.encode_state_as_update_v1(&StateVector::default());
+		Message::Sync(SyncMessage::Update(update)).encode_v1()
+	}
+
+	fn server() -> (RwLock<Doc>, RwLock<Awareness>, AtomicBool) {
+		let doc = Doc::new();
+		let awareness = Awareness::new(doc.clone());
+		(
+			RwLock::new(doc),
+			RwLock::new(awareness),
+			AtomicBool::new(false),
+		)
+	}
+
+	async fn body_text(doc: &RwLock<Doc>) -> String {
+		let doc = doc.read().await;
+		let body = doc.get_or_insert_text("body");
+		body.get_string(&doc.transact())
+	}
+
+	#[tokio::test]
+	async fn read_write_client_updates_are_applied_and_broadcast() {
+		let (doc, awareness, dirty) = server();
+		let response = process_binary_message(
+			&client_update("hello"),
+			&doc,
+			&awareness,
+			&dirty,
+			Access::ReadWrite,
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(body_text(&doc).await, "hello");
+		assert!(dirty.load(Ordering::Acquire));
+		assert!(!response.is_empty(), "update should be re-broadcast");
+	}
+
+	#[tokio::test]
+	async fn read_only_client_updates_are_dropped() {
+		let (doc, awareness, dirty) = server();
+		let response = process_binary_message(
+			&client_update("vandalism"),
+			&doc,
+			&awareness,
+			&dirty,
+			Access::ReadOnly,
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(body_text(&doc).await, "");
+		assert!(!dirty.load(Ordering::Acquire), "nothing to save");
+		assert!(response.is_empty(), "nothing to broadcast");
+	}
+
+	#[tokio::test]
+	async fn read_only_client_can_still_sync_the_document() {
+		let (doc, awareness, dirty) = server();
+		process_binary_message(
+			&client_update("shared text"),
+			&doc,
+			&awareness,
+			&dirty,
+			Access::ReadWrite,
+		)
+		.await
+		.unwrap();
+
+		// A viewer asks for everything it is missing (empty state vector).
+		let step1 = Message::Sync(SyncMessage::SyncStep1(StateVector::default())).encode_v1();
+		let response = process_binary_message(&step1, &doc, &awareness, &dirty, Access::ReadOnly)
+			.await
+			.unwrap();
+
+		let Message::Sync(SyncMessage::SyncStep2(update)) = Message::decode_v1(&response).unwrap()
+		else {
+			panic!("expected SyncStep2");
+		};
+		let viewer = Doc::new();
+		viewer
+			.transact_mut()
+			.apply_update(Update::decode_v1(&update).unwrap());
+		let body = viewer.get_or_insert_text("body");
+		assert_eq!(body.get_string(&viewer.transact()), "shared text");
+	}
 }

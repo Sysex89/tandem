@@ -75,6 +75,7 @@
 	"noteEditor.placeholder": "Empieza a escribir...",
 	"noteEditor.collaborators": "colaboradores",
 	"noteEditor.anonymous": "Anónimo",
+	"noteEditor.viewOnly": "Solo lectura",
 	"nav.helloUser": "Hola, {name}!",
 	"notes.sidebar.show": "Mostrar barra lateral",
 	"notes.sidebar.hide": "Ocultar barra lateral",

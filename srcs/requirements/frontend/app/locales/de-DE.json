@@ -75,6 +75,7 @@
 	"noteEditor.placeholder": "Schreib los...",
 	"noteEditor.collaborators": "Mitwirkende",
 	"noteEditor.anonymous": "Anonym",
+	"noteEditor.viewOnly": "Nur ansehen",
 	"nav.helloUser": "Hallo, {name}!",
 	"notes.sidebar.show": "Seitenleiste anzeigen",
 	"notes.sidebar.hide": "Seitenleiste ausblenden",

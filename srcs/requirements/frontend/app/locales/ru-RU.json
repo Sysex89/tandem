@@ -75,6 +75,7 @@
     "noteEditor.placeholder": "Начните писать...",
     "noteEditor.collaborators": "соавторы",
     "noteEditor.anonymous": "Аноним",
+    "noteEditor.viewOnly": "Только просмотр",
     "nav.helloUser": "Привет, {name}!",
     "notes.sidebar.show": "Показать боковую панель",
     "notes.sidebar.hide": "Скрыть боковую панель",

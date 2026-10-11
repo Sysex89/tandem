@@ -44,7 +44,12 @@ export async function deleteNote(owner: User, noteId: string) {
 }
 
 /** Opens the Notes page as `user` in a fresh browser context and selects the note by title. */
-export async function openNote(browser: Browser, user: User, title: string): Promise<Page> {
+export async function openNote(
+	browser: Browser,
+	user: User,
+	title: string,
+	{ editable = true } = {},
+): Promise<Page> {
 	const context = await browser.newContext({
 		baseURL: BASE_URL,
 		ignoreHTTPSErrors: true,
@@ -54,7 +59,7 @@ export async function openNote(browser: Browser, user: User, title: string): Pro
 	await page.goto("/notes");
 	await page.getByRole("option", { name: title }).click();
 	await expect(page.locator(".ProseMirror")).toBeVisible();
-	await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", "true");
+	await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", String(editable));
 	return page;
 }
 

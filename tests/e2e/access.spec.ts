@@ -70,19 +70,48 @@ test.describe("note access", () => {
 		await deleteNote(alice, noteId);
 	});
 
-	// Known bug: the editor service only checks *whether* a share exists, not its
-	// role, and the frontend does not make the editor read-only, so "View" guests
-	// can edit. Remove test.fail() once view-only access is enforced.
-	test("a view-only guest cannot change the document", async ({ browser }) => {
-		test.fail();
+	test("a view-only guest sees live changes but the UI is read-only", async ({ browser }) => {
+		const { noteId, title } = await createNote(alice, bob, "View");
+		const alicePage = await openNote(browser, alice, title);
+		const bobPage = await openNote(browser, bob, title, { editable: false });
+
+		await expect(bobPage.getByText("View only")).toBeVisible();
+		await expect(bobPage.locator(".editor-title")).toHaveAttribute("readonly", "");
+
+		await typeAtEnd(alicePage, "Owner text.");
+		await expect(bobPage.locator(".ProseMirror")).toContainText("Owner text.");
+
+		await deleteNote(alice, noteId);
+	});
+
+	test("the editor service drops edits from a view-only guest who bypasses the UI", async ({ browser }) => {
 		const { noteId, title } = await createNote(alice, bob, "View");
 		const alicePage = await openNote(browser, alice, title);
 		await typeAtEnd(alicePage, "Owner text.");
 
-		const bobPage = await openNote(browser, bob, title).catch(() => null);
-		if (bobPage) await typeAtEnd(bobPage, " Viewer edit.");
-		await alicePage.waitForTimeout(1_500);
-		await expect(alicePage.locator(".ProseMirror")).not.toContainText("Viewer edit.", { timeout: 1_000 });
+		// Simulate a tampered client: re-enable editing in bob's browser and type anyway.
+		const bobPage = await openNote(browser, bob, title, { editable: false });
+		await expect(bobPage.locator(".ProseMirror")).toContainText("Owner text.");
+		await bobPage.locator(".ProseMirror").evaluate((el) => (el as any).editor.setEditable(true));
+		await typeAtEnd(bobPage, " Viewer edit.");
+		await expect(bobPage.locator(".ProseMirror")).toContainText("Viewer edit."); // only locally
+
+		// The owner never receives it, and it is not persisted.
+		await typeAtEnd(alicePage, " More owner text.");
+		await expect(alicePage.locator(".ProseMirror")).toContainText("Owner text. More owner text.");
+		await expect(alicePage.locator(".ProseMirror")).not.toContainText("Viewer edit.");
+
+		await alicePage.context().close();
+		await bobPage.context().close();
+		await expect(async () => {
+			const reopened = await openNote(browser, alice, title);
+			try {
+				await expect(reopened.locator(".ProseMirror")).toContainText("More owner text.", { timeout: 2_000 });
+				await expect(reopened.locator(".ProseMirror")).not.toContainText("Viewer edit.");
+			} finally {
+				await reopened.context().close();
+			}
+		}).toPass({ timeout: 20_000 });
 
 		await deleteNote(alice, noteId);
 	});

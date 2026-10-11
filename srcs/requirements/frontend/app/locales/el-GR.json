@@ -75,6 +75,7 @@
     "noteEditor.placeholder": "Ξεκινήστε να γράφετε...",
     "noteEditor.collaborators": "συνεργάτες",
     "noteEditor.anonymous": "Ανώνυμος",
+    "noteEditor.viewOnly": "Μόνο προβολή",
     "nav.helloUser": "Γεια σου, {name}!",
     "notes.sidebar.show": "Εμφάνιση πλαϊνής μπάρας",
     "notes.sidebar.hide": "Απόκρυψη πλαϊνής μπάρας",

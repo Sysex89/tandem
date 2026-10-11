@@ -176,7 +176,10 @@ async function selectSharedNote(note: SharedNote) {
 
 const activeNote = computed(() => {
 	if (noteStore.selectedNote) return noteStore.selectedNote;
-	if (selectedSharedNote.value) return { id: selectedSharedNote.value.note_id, title: selectedSharedNote.value.note_title };
+	if (selectedSharedNote.value) {
+		const shared = selectedSharedNote.value;
+		return { id: shared.note_id, title: shared.note_title, readOnly: shared.access_role === "View" };
+	}
 	return null;
 });
 
@@ -340,7 +343,8 @@ await useAsyncData('notes', async () => {
 
 		<div v-if="mounted && activeNote"
 			class="flex flex-1 w-full h-full gap-4 flex-col md:flex-row overflow-y-auto md:overflow-y-visible">
-			<NoteEditor ref="noteEditorRef" :note-id="activeNote.id" :fallback-title="activeNote.title" class="flex-1" />
+			<NoteEditor ref="noteEditorRef" :note-id="activeNote.id" :fallback-title="activeNote.title"
+				:read-only="'readOnly' in activeNote && activeNote.readOnly" class="flex-1" />
 		</div>
 		<div v-else-if="!activeNote" class="empty-state">{{ t('notes.empty') }}</div>
 

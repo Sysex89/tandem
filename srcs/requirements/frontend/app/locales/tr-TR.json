@@ -75,6 +75,7 @@
     "noteEditor.placeholder": "Yazmaya başlayın...",
     "noteEditor.collaborators": "iş birlikçiler",
     "noteEditor.anonymous": "Anonim",
+    "noteEditor.viewOnly": "Yalnızca görüntüleme",
     "nav.helloUser": "Merhaba, {name}!",
     "notes.sidebar.show": "Kenar çubuğunu göster",
     "notes.sidebar.hide": "Kenar çubuğunu gizle",
