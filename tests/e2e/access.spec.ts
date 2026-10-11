@@ -116,3 +116,23 @@ test.describe("note access", () => {
 		await deleteNote(alice, noteId);
 	});
 });
+
+test("the invite dialog can share a note as view-only", async ({ browser }) => {
+	const owner = await signIn("e2e_alice");
+	const guest = await signIn("e2e_carol");
+	const { noteId, title } = await createNote(owner);
+
+	const page = await openNote(browser, owner, title);
+	await page.getByRole("option", { name: title }).getByRole("button", { name: "Invite to collaborate" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByRole("button", { name: "Can view" }).click();
+	await dialog.getByRole("button", { name: "@e2e_carol" }).click();
+	await dialog.getByRole("button", { name: "Send Invite" }).click();
+	await expect(dialog.getByText("Can view")).toHaveCount(2); // picker + collaborator row
+
+	const received = await (await guest.api.get("/api/notes/collab/received")).json();
+	const share = received.find((s: { note_id: string }) => s.note_id === noteId);
+	expect(share?.access_role).toBe("View");
+
+	await deleteNote(owner, noteId);
+});

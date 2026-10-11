@@ -18,6 +18,7 @@ use crate::db;
 use crate::models::Access;
 use crate::state::{AppState, DocumentRoom};
 use crate::sync;
+use crate::title;
 
 // global counter to assign unique IDs to clients (for awareness tracking)
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
@@ -98,6 +99,8 @@ async fn handle_socket(
 							{
 								room_bg.dirty.store(false, Ordering::Release);
 							}
+							drop(doc_lock);
+							title::sync_title(&state_bg, &room_bg, note_id).await;
 						}
 					}
 				});
@@ -202,6 +205,8 @@ async fn handle_socket(
 		{
 			tracing::error!("Failed to save note {} to DB upon closing.", note_id);
 		}
+		drop(doc_lock);
+		title::sync_title(&state, &room, note_id).await;
 
 		state.rooms.remove(&note_id);
 	}

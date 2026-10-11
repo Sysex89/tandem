@@ -64,11 +64,27 @@ test("the title syncs to collaborators and is stored for the owner's note list",
 	await alicePage.locator(".editor-title").fill(renamed);
 	await expect(bobPage.locator(".editor-title")).toHaveValue(renamed);
 
-	// The title is saved to the notes service after a short debounce.
+	// The editor service saves the title on its next save cycle (every 5 s).
 	await expect(async () => {
 		const note = await (await alice.api.get(`/api/notes/${noteId}`)).json();
 		expect(note.title).toBe(renamed);
-	}).toPass({ timeout: 10_000 });
+	}).toPass({ timeout: 15_000 });
+
+	await deleteNote(alice, noteId);
+});
+
+test("a guest with edit access can rename the note for everyone", async ({ browser }) => {
+	const { noteId, title } = await createNote(alice, bob, "Edit");
+	const bobPage = await openNote(browser, bob, title);
+
+	const renamed = `${title} by bob`;
+	await bobPage.locator(".editor-title").fill(renamed);
+
+	// Guests may not call the rename endpoint themselves; the editor service persists it.
+	await expect(async () => {
+		const note = await (await alice.api.get(`/api/notes/${noteId}`)).json();
+		expect(note.title).toBe(renamed);
+	}).toPass({ timeout: 15_000 });
 
 	await deleteNote(alice, noteId);
 });

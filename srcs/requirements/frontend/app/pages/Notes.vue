@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import Listbox from "@/volt/Listbox.vue";
 import Button from "@/volt/Button.vue";
 import Dialog from "@/volt/Dialog.vue";
+import SelectButton from "@/volt/SelectButton.vue";
 import SidebarLayout from "@/components/layouts/SidebarLayout.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
 import { useConfirm } from "primevue/useconfirm";
@@ -26,6 +27,11 @@ const sidebarOpen = ref(true);
 const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null);
 
 const showInviteDialog = ref(false);
+const inviteRole = ref<"Edit" | "View">("Edit");
+const roleOptions = computed(() => [
+	{ label: t("notes.invite.role.Edit"), value: "Edit" },
+	{ label: t("notes.invite.role.View"), value: "View" },
+]);
 const inviteNoteId = ref<string | null>(null);
 const selectedUsers = ref<string[]>([]);
 const allUsers = ref<ShareUser[]>([]);
@@ -115,7 +121,7 @@ async function sendInvite() {
 		try {
 			await $fetch('/api/notes/collab/', {
 				method: 'POST',
-				body: { note_id: inviteNoteId.value, guest_id: guestId, role: 'Edit' },
+				body: { note_id: inviteNoteId.value, guest_id: guestId, role: inviteRole.value },
 			});
 			shared++;
 		} catch (e: any) {
@@ -304,7 +310,7 @@ await useAsyncData('notes', async () => {
 									:class="noteStore.selectedNote?.id === slotProps.option.id
 										? 'text-white hover:bg-white/20'
 										: 'text-surface-400 hover:text-surface-0 hover:bg-surface-600'"
-									@click.stop="openInvite(slotProps.option.id)">
+									:aria-label="t('notes.invite.header')" @click.stop="openInvite(slotProps.option.id)">
 									<IconUserPlus class="w-3.5 h-3.5" />
 								</button>
 								<button class="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
@@ -331,8 +337,8 @@ await useAsyncData('notes', async () => {
 						<div class="flex items-center justify-between w-full">
 							<span class="truncate text-sm">{{ slotProps.option.note_title || t('notes.untitled')
 							}}</span>
-							<span class="text-xs text-surface-500 shrink-0 ml-2">{{ slotProps.option.access_role
-							}}</span>
+							<span class="text-xs text-surface-500 shrink-0 ml-2">{{
+								t(`notes.invite.role.${slotProps.option.access_role}`) }}</span>
 						</div>
 					</template>
 				</Listbox>
@@ -363,7 +369,7 @@ await useAsyncData('notes', async () => {
 									class="shrink-0 rounded-full overflow-hidden" />
 								<div class="min-w-0">
 									<div class="truncate">@{{ usernameFor(collab.guest_id) }}</div>
-									<div class="text-xs text-surface-500">{{ collab.access_role }}</div>
+									<div class="text-xs text-surface-500">{{ t(`notes.invite.role.${collab.access_role}`) }}</div>
 								</div>
 							</div>
 							<button
@@ -402,6 +408,12 @@ await useAsyncData('notes', async () => {
 					</button>
 				</div>
 				<div v-else class="text-xs text-surface-500">{{ t('notes.invite.allUsersHaveAccess') }}</div>
+
+				<div v-if="availableUsers.length" class="flex items-center justify-between gap-2">
+					<label class="text-sm text-surface-500">{{ t('notes.invite.permission') }}</label>
+					<SelectButton v-model="inviteRole" :options="roleOptions" optionLabel="label" optionValue="value"
+						:allowEmpty="false" />
+				</div>
 
 				<span v-if="inviteError" class="text-xs text-red-500">{{ inviteError }}</span>
 				<span v-if="inviteSuccess" class="text-xs text-green-600">{{ inviteSuccess }}</span>

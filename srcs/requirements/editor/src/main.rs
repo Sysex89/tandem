@@ -2,6 +2,7 @@ mod db;
 mod models;
 mod state;
 mod sync;
+mod title;
 mod ws_handler;
 
 use axum::{Router, routing::get};

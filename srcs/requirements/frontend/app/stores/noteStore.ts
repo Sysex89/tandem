@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { useDebounceFn } from "@vueuse/core";
 import type { Note } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiI18n } from "~/composables/useUiI18n";
@@ -129,20 +128,8 @@ export const useNoteStore = defineStore("notes", () => {
 
 	const notesCount = computed(() => notes.value.length);
 
-	// Debounced save to Postgres — temporary until WS notification channel
-	const _persistTitle = useDebounceFn(async (id: string, title: string) => {
-		try {
-			const response = await fetch(`/api/notes/${id}`, {
-				method: "PUT",
-				headers: buildHeaders({ "Content-Type": "application/json" }),
-				body: JSON.stringify({ title }),
-			});
-			await throwForResponse(response);
-		} catch (e) {
-			console.error("Failed to persist title:", e);
-		}
-	}, 500);
-
+	// Local mirror only: the editor service persists the shared title to the
+	// notes service, so the sidebar just reflects it immediately.
 	function updateNoteTitle(id: string, title: string) {
 		const note = notes.value.find((n: Note) => n.id === id);
 		if (note) {
@@ -151,7 +138,6 @@ export const useNoteStore = defineStore("notes", () => {
 		if (selectedNote.value?.id === id) {
 			selectedNote.value = { ...selectedNote.value, title };
 		}
-		_persistTitle(id, title);
 	}
 
 	function resetSelected() {

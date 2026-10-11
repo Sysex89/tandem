@@ -38,6 +38,16 @@ pub async fn load_note(pool: &PgPool, note_id: Uuid) -> Result<Doc, ()> {
 	Ok(doc)
 }
 
+pub async fn owner_of(pool: &PgPool, note_id: Uuid) -> Option<Uuid> {
+	sqlx::query_scalar("SELECT owner_id FROM notes WHERE id = $1")
+		.bind(note_id)
+		.fetch_optional(pool)
+		.await
+		.map_err(|e| tracing::error!("DB Error fetching owner of note {}: {}", note_id, e))
+		.ok()
+		.flatten()
+}
+
 /// Owner, or a guest via a private share or public link. The most permissive
 /// matching role wins; `None` means no access (or a database error).
 pub async fn access_level(pool: &PgPool, note_id: Uuid, user_id: Uuid) -> Option<Access> {
