@@ -102,6 +102,7 @@ pub async fn post_note(
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
+	check_title(&state, &locale, &payload.title)?;
 	tracing::info!("Creating new note: {} for user {}", payload.title, user_id);
 
 	let mut tx = state.db_pool.begin().await.map_err(|e| {
@@ -220,6 +221,7 @@ pub async fn edit_title(
 	let locale = requested_locale(&headers, state.i18n.default_locale());
 	let user_id = get_user_id(&headers)
 		.map_err(|_| error_response(&state, &locale, StatusCode::UNAUTHORIZED, "unauthorized"))?;
+	check_title(&state, &locale, &payload.title)?;
 	tracing::info!("Updating title for note {}: {}", id, payload.title);
 
 	let mut tx = state.db_pool.begin().await.map_err(|e| {
@@ -335,7 +337,7 @@ pub async fn export_notes(
 }
 
 pub fn slugify(title: &str) -> String {
-	title
+	let slug = title
 		.to_lowercase()
 		.chars()
 		.map(|c| if c.is_alphanumeric() { c } else { '-' })
@@ -343,7 +345,27 @@ pub fn slugify(title: &str) -> String {
 		.split('-')
 		.filter(|s| !s.is_empty())
 		.collect::<Vec<_>>()
-		.join("-")
+		.join("-");
+	if slug.is_empty() {
+		"untitled".to_string()
+	} else {
+		slug
+	}
+}
+
+/// `notes.title` is VARCHAR(255), which counts characters, not bytes.
+const MAX_TITLE_CHARS: usize = 255;
+
+fn check_title(state: &AppState, locale: &str, title: &str) -> Result<(), ApiError> {
+	if title.chars().count() > MAX_TITLE_CHARS {
+		return Err(error_response(
+			state,
+			locale,
+			StatusCode::BAD_REQUEST,
+			"title-too-long",
+		));
+	}
+	Ok(())
 }
 
 pub async fn generate_unique_slug(
@@ -382,4 +404,29 @@ pub async fn generate_unique_slug(
 	}
 
 	Ok(slug)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::slugify;
+
+	#[test]
+	fn slugify_lowercases_and_collapses_separators() {
+		assert_eq!(slugify("My First Note!"), "my-first-note");
+		assert_eq!(slugify("  a -- b__c  "), "a-b-c");
+		assert_eq!(slugify("Road map 2027"), "road-map-2027");
+	}
+
+	#[test]
+	fn slugify_keeps_non_latin_letters() {
+		assert_eq!(slugify("Σημειώσεις Μαθήματος"), "σημειώσεις-μαθήματος");
+		assert_eq!(slugify("ملاحظات الاجتماع"), "ملاحظات-الاجتماع");
+		assert_eq!(slugify("Привет, мир"), "привет-мир");
+	}
+
+	#[test]
+	fn slugify_never_returns_an_empty_slug() {
+		assert_eq!(slugify("!!!"), "untitled");
+		assert_eq!(slugify(""), "untitled");
+	}
 }
