@@ -8,6 +8,11 @@ updates:
     schedule: { interval: weekly }
     groups:
       rust-minor-patch: { update-types: [minor, patch] }
+    ignore:
+      # y-sync 0.4 is tied to yrs 0.17; newer yrs moves the sync protocol into yrs::sync,
+      # so upgrading means porting editor/src/sync.rs. Remove this when doing that.
+      - dependency-name: yrs
+      - dependency-name: y-sync
 
   - package-ecosystem: npm # also handles pnpm lockfiles
     directories: ["/srcs/requirements/auth", "/srcs/requirements/frontend", "/tests/e2e", "/tests/load"]
