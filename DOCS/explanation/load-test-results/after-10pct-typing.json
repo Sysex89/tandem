@@ -1,0 +1,114 @@
+{
+  "options": {
+    "durationS": 30,
+    "rate": 5,
+    "active": 0.1,
+    "cursors": true,
+    "stalled": 0,
+    "workerCount": 16
+  },
+  "rows": [
+    {
+      "clients": 50,
+      "writers": 5,
+      "evicted": 0,
+      "keystrokesPerS": 25,
+      "deliveriesPerS": 1215,
+      "delivered": 1,
+      "latencyMs": {
+        "p50": 5.682861328125,
+        "p95": 22.695068359375,
+        "p99": 36.648193359375,
+        "max": 57.00537109375
+      },
+      "joinMs": {
+        "p50": 69.87744140625,
+        "p95": 127.880615234375
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 17.727487,
+      "containers": {
+        "editor": {
+          "cpu": "66.75%",
+          "mem": "29.73MiB"
+        },
+        "nginx": {
+          "cpu": "47.48%",
+          "mem": "26.14MiB"
+        },
+        "postgres": {
+          "cpu": "5.69%",
+          "mem": "63.05MiB"
+        }
+      }
+    },
+    {
+      "clients": 100,
+      "writers": 10,
+      "evicted": 0,
+      "keystrokesPerS": 48,
+      "deliveriesPerS": 4798,
+      "delivered": 1,
+      "latencyMs": {
+        "p50": 6.123291015625,
+        "p95": 30.810302734375,
+        "p99": 126.8955078125,
+        "max": 852.376220703125
+      },
+      "joinMs": {
+        "p50": 157.980224609375,
+        "p95": 768.002197265625
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 38.895615,
+      "containers": {
+        "editor": {
+          "cpu": "188.33%",
+          "mem": "33.05MiB"
+        },
+        "nginx": {
+          "cpu": "102.92%",
+          "mem": "30.18MiB"
+        },
+        "postgres": {
+          "cpu": "1.61%",
+          "mem": "68.8MiB"
+        }
+      }
+    },
+    {
+      "clients": 200,
+      "writers": 20,
+      "evicted": 1,
+      "keystrokesPerS": 20,
+      "deliveriesPerS": 3906,
+      "delivered": 0.9879515024788371,
+      "latencyMs": {
+        "p50": 878.72314453125,
+        "p95": 4239.263671875,
+        "p99": 7260.440673828125,
+        "max": 21216.6865234375
+      },
+      "joinMs": {
+        "p50": 479.527099609375,
+        "p95": 3923.893798828125
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 3001.024511,
+      "containers": {
+        "editor": {
+          "cpu": "224.85%",
+          "mem": "53.53MiB"
+        },
+        "nginx": {
+          "cpu": "127.80%",
+          "mem": "42.24MiB"
+        },
+        "postgres": {
+          "cpu": "1.40%",
+          "mem": "72.62MiB"
+        }
+      }
+    }
+  ]
+}

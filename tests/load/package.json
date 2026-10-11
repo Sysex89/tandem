@@ -1,0 +1,15 @@
+{
+  "name": "mycelium-load",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "load": "node collab-load.mjs"
+  },
+  "dependencies": {
+    "undici": "^7.0.0",
+    "ws": "^8.18.0",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.29"
+  },
+  "packageManager": "pnpm@10.28.2"
+}

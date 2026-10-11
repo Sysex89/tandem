@@ -1,0 +1,170 @@
+{
+  "options": {
+    "durationS": 30,
+    "rate": 5,
+    "cursors": true,
+    "workerCount": 8
+  },
+  "rows": [
+    {
+      "clients": 2,
+      "keystrokesPerS": 10,
+      "deliveriesPerS": 10,
+      "delivered": 1,
+      "latencyMs": {
+        "p50": 18.394775390625,
+        "p95": 29.794677734375,
+        "p99": 31.11572265625,
+        "max": 42.53955078125
+      },
+      "joinMs": {
+        "p50": 23.10107421875,
+        "p95": 23.10107421875
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 11.591679,
+      "containers": {
+        "editor": {
+          "cpu": "0.67%",
+          "mem": "11.36MiB"
+        },
+        "nginx": {
+          "cpu": "0.72%",
+          "mem": "20.72MiB"
+        },
+        "postgres": {
+          "cpu": "4.46%",
+          "mem": "49.46MiB"
+        }
+      }
+    },
+    {
+      "clients": 10,
+      "keystrokesPerS": 50,
+      "deliveriesPerS": 447,
+      "delivered": 1,
+      "latencyMs": {
+        "p50": 2.8056640625,
+        "p95": 4.54248046875,
+        "p99": 6.1142578125,
+        "max": 22.350341796875
+      },
+      "joinMs": {
+        "p50": 33.616455078125,
+        "p95": 52.684814453125
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 12.451839,
+      "containers": {
+        "editor": {
+          "cpu": "22.36%",
+          "mem": "12.05MiB"
+        },
+        "nginx": {
+          "cpu": "15.57%",
+          "mem": "23.1MiB"
+        },
+        "postgres": {
+          "cpu": "0.01%",
+          "mem": "45.18MiB"
+        }
+      }
+    },
+    {
+      "clients": 25,
+      "keystrokesPerS": 116,
+      "deliveriesPerS": 2794,
+      "delivered": 1,
+      "latencyMs": {
+        "p50": 9.8388671875,
+        "p95": 83.525390625,
+        "p99": 145.505126953125,
+        "max": 301.410400390625
+      },
+      "joinMs": {
+        "p50": 41.229248046875,
+        "p95": 60.1337890625
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 132.382719,
+      "containers": {
+        "editor": {
+          "cpu": "64.26%",
+          "mem": "14.79MiB"
+        },
+        "nginx": {
+          "cpu": "88.81%",
+          "mem": "25.06MiB"
+        },
+        "postgres": {
+          "cpu": "0.01%",
+          "mem": "59.82MiB"
+        }
+      }
+    },
+    {
+      "clients": 50,
+      "keystrokesPerS": 198,
+      "deliveriesPerS": 3500,
+      "delivered": 0.3615612968103205,
+      "latencyMs": {
+        "p50": 11426.18603515625,
+        "p95": 20923.34765625,
+        "p99": 22152.570068359375,
+        "max": 23183.42822265625
+      },
+      "joinMs": {
+        "p50": 58.502685546875,
+        "p95": 400.122314453125
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 305.135615,
+      "containers": {
+        "editor": {
+          "cpu": "56.05%",
+          "mem": "531.1MiB"
+        },
+        "nginx": {
+          "cpu": "80.55%",
+          "mem": "401.4MiB"
+        },
+        "postgres": {
+          "cpu": "0.58%",
+          "mem": "62.67MiB"
+        }
+      }
+    },
+    {
+      "clients": 100,
+      "keystrokesPerS": 297,
+      "deliveriesPerS": 5193,
+      "delivered": 0.1763612362132873,
+      "latencyMs": {
+        "p50": 8200.226318359375,
+        "p95": 22318.098388671875,
+        "p99": 25605.2177734375,
+        "max": 26947.701904296875
+      },
+      "joinMs": {
+        "p50": 158.751220703125,
+        "p95": 575.015380859375
+      },
+      "disconnects": 0,
+      "generatorLoopP99Ms": 984.088575,
+      "containers": {
+        "editor": {
+          "cpu": "81.69%",
+          "mem": "2.888GiB"
+        },
+        "nginx": {
+          "cpu": "98.18%",
+          "mem": "472MiB"
+        },
+        "postgres": {
+          "cpu": "0.00%",
+          "mem": "68.53MiB"
+        }
+      }
+    }
+  ]
+}

@@ -66,6 +66,10 @@ demo:
 e2e:
 	cd tests/e2e && pnpm install --frozen-lockfile && pnpm exec playwright test
 
+# Collaboration load test against a running stack; see DOCS/explanation/load-test.md
+load:
+	cd tests/load && pnpm install --frozen-lockfile && node collab-load.mjs --clients 2,10,25,50
+
 dev:
 	docker compose -f srcs/docker-compose-dev.yml up -d --build $(FLAGS)
 
@@ -79,4 +83,4 @@ logs:
 getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
 
-.PHONY: all up live down clean cleanv fclean wipe re demo e2e dev rebuild logs getlogs
+.PHONY: all up live down clean cleanv fclean wipe re demo e2e load dev rebuild logs getlogs

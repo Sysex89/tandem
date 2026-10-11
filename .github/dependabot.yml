@@ -10,7 +10,7 @@ updates:
       rust-minor-patch: { update-types: [minor, patch] }
 
   - package-ecosystem: npm # also handles pnpm lockfiles
-    directories: ["/srcs/requirements/auth", "/srcs/requirements/frontend", "/tests/e2e"]
+    directories: ["/srcs/requirements/auth", "/srcs/requirements/frontend", "/tests/e2e", "/tests/load"]
     schedule: { interval: weekly }
     groups:
       js-minor-patch: { update-types: [minor, patch] }

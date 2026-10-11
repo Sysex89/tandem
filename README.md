@@ -47,6 +47,12 @@ Every service is scraped by Prometheus and has a provisioned Grafana dashboard (
 
 ![Grafana dashboard for the real-time editor service](DOCS/img/editor-dashboard.png)
 
+## Performance
+
+A [load test](DOCS/explanation/load-test.md) drives real Yjs clients through nginx into one note and measures how long each keystroke takes to reach every other client. With **50 people all typing at once**, every keystroke arrives with a **p99 of 23 ms**. A **100-person room with 10 writers** has a p99 of 127 ms, and the editor stays under 35 MB of memory.
+
+Before the test, the same 50-person room delivered only 36 % of keystrokes, up to 22 s late, and the editor grew to 2.9 GB. Two bugs caused it: every cursor move re-broadcast the whole room's cursors (O(N³) traffic), and per-client send queues had no limit. The write-up covers how they were found and fixed.
+
 ## Tech stack
 
 | Layer | Technologies |
@@ -127,6 +133,7 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
 
 ```bash
 make e2e    # Playwright end-to-end tests against the running demo stack
+make load   # collaboration load test (2 to 50 simultaneous editors), see DOCS/explanation/load-test.md
 ```
 
 The end-to-end suite covers live sync between two users, persistence, title sync, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth integration tests, Rust lints, the frontend build and config checks on every push.

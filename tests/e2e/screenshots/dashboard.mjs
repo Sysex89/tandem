@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 
 const BASE = process.env.BASE ?? 'https://localhost:8443';
 const OUT = process.argv[2] ?? '../../DOCS/img/editor-dashboard.png';
+const FROM = process.env.FROM ?? 'now-15m'; // e.g. FROM=now-1h to cover a load test
 const secret = (name) => readFileSync(new URL(`../../../srcs/secrets/${name}`, import.meta.url), 'utf8').trim();
 
 const browser = await chromium.launch();
@@ -22,7 +23,7 @@ await page.getByRole('button', { name: /log in/i }).click();
 await page.waitForURL((url) => !url.pathname.endsWith('/login'));
 
 // Tall enough that Grafana renders every panel (it lazy-loads panels below the fold).
-await page.goto(`${BASE}/grafana/d/editor-metrics?kiosk&from=now-15m&to=now`);
+await page.goto(`${BASE}/grafana/d/editor-metrics?kiosk&from=${FROM}&to=now`);
 await page.getByText('Revocations and title syncs').waitFor();
 await page.waitForTimeout(5000); // let the queries come back and the charts draw
 await page.screenshot({ path: OUT });
