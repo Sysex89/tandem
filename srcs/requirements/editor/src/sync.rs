@@ -65,12 +65,11 @@ pub async fn process_binary_message(
 		}
 
 		// if cursor message: we apply the update but do not lock the document, since its just cursor movement.
+		// Relay the client's own message rather than `awareness.update()`, which re-encodes every
+		// client's state: with N clients moving their cursors that is O(N^2) bytes per second per room.
 		Message::Awareness(update) => {
-			let mut awareness_lock = awareness.write().await;
-			awareness_lock.apply_update(update)?;
-			if let Ok(new_update) = awareness_lock.update() {
-				Message::Awareness(new_update).encode(&mut response_encoder);
-			}
+			awareness.write().await.apply_update(update)?;
+			return Ok(msg_bytes.to_vec());
 		}
 
 		_ => {}
@@ -171,6 +170,44 @@ mod tests {
 			metrics::get().updates_dropped_total.get() > dropped_before,
 			"drop is counted"
 		);
+	}
+
+	/// A y-sync awareness message carrying one client's cursor after it moved `moves` times
+	/// (each move bumps the awareness clock, so older states are ignored).
+	fn client_cursor(client_id: u64, moves: u32) -> Vec<u8> {
+		let mut client = Awareness::new(Doc::with_client_id(client_id));
+		for cursor in 0..=moves {
+			client.set_local_state(format!(r#"{{"cursor":{cursor}}}"#));
+		}
+		Message::Awareness(client.update().unwrap()).encode_v1()
+	}
+
+	#[tokio::test]
+	async fn cursor_moves_relay_only_the_sender_state() {
+		let (doc, awareness, dirty) = server();
+		for client_id in 1..=50 {
+			process_binary_message(
+				&client_cursor(client_id, 0),
+				&doc,
+				&awareness,
+				&dirty,
+				Access::ReadWrite,
+			)
+			.await
+			.unwrap();
+		}
+
+		let moved = client_cursor(7, 42);
+		let response = process_binary_message(&moved, &doc, &awareness, &dirty, Access::ReadOnly)
+			.await
+			.unwrap();
+
+		assert_eq!(
+			response, moved,
+			"broadcast must not grow with the room size"
+		);
+		assert_eq!(awareness.read().await.clients().len(), 50);
+		assert_eq!(awareness.read().await.clients()[&7], r#"{"cursor":42}"#);
 	}
 
 	#[tokio::test]
