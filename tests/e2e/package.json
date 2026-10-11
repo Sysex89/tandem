@@ -1,0 +1,12 @@
+{
+  "name": "mycelium-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  },
+  "packageManager": "pnpm@10.28.2"
+}

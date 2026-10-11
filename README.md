@@ -117,6 +117,14 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
 | `make down` | Stop, and clear `node_modules` / Nuxt cache volumes |
 | `make fclean` | **Destructive.** Also deletes all database volumes |
 
+### Tests
+
+```bash
+make e2e    # Playwright end-to-end tests against the running demo stack
+```
+
+The end-to-end suite covers live sync between two users, persistence, title sync, nginx's authentication gate (including ignoring a spoofed `X-User-Id`), share access and revocation. CI also runs the auth integration tests, Rust lints, the frontend build and config checks on every push.
+
 Troubleshooting stale volumes and file permissions: [README_DEV.md](README_DEV.md).
 
 ## Credits

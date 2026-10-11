@@ -62,6 +62,10 @@ demo:
 	$(COMPOSE) up -d --build $(FLAGS)
 	@./scripts/demo-seed.sh
 
+# End-to-end tests against the running stack (start it with `make demo`).
+e2e:
+	cd tests/e2e && pnpm install --frozen-lockfile && pnpm exec playwright test
+
 dev:
 	docker compose -f srcs/docker-compose-dev.yml up -d --build $(FLAGS)
 
@@ -75,4 +79,4 @@ logs:
 getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
 
-.PHONY: all up live down clean cleanv fclean wipe re demo dev rebuild logs getlogs
+.PHONY: all up live down clean cleanv fclean wipe re demo e2e dev rebuild logs getlogs
