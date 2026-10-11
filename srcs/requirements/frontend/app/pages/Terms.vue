@@ -34,8 +34,7 @@ const contactEmail = 'myakoven@student.42berlin.de';
 			<p class="mb-2">3.1 <strong>{{ t('terms.s3.1.label') }}</strong> {{ t('terms.s3.1') }}</p>
 			<p class="mb-2">3.2 <strong>{{ t('terms.s3.2.label') }}</strong> {{ t('terms.s3.2') }}</p>
 			<p class="mb-2">3.3 <strong>{{ t('terms.s3.3.label') }}</strong> {{ t('terms.s3.3') }}</p>
-			<p class="mb-2">3.4 <strong>{{ t('terms.s3.4.label') }}</strong> {{ t('terms.s3.4') }}</p>
-			<p>3.5 <strong>{{ t('terms.s3.5.label') }}</strong> {{ t('terms.s3.5') }}</p>
+			<p>3.4 <strong>{{ t('terms.s3.5.label') }}</strong> {{ t('terms.s3.5') }}</p>
 		</section>
 
 		<section class="mb-6">

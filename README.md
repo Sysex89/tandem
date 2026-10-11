@@ -1,13 +1,12 @@
 # Mycelium Notes
 
-A self-hosted note-taking app with real-time collaborative editing and an AI assistant that answers questions from your own notes.
+A self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
 
-<!-- TODO: screenshot / GIF of two cursors editing the same note + the chat sidebar -->
+<!-- TODO: screenshot / GIF of two cursors editing the same note -->
 
 ## Features
 
 - **Real-time collaboration**: several people edit the same note at once, with live cursors. Built on Yjs CRDTs, so concurrent edits merge without conflicts and survive reconnects.
-- **Ask your notes**: a chat sidebar backed by retrieval-augmented generation (RAG). Note content is embedded into pgvector, and answers are streamed from a local LLM (Ollama) or any OpenAI-compatible API. Retrieval is limited to notes you have access to.
 - **Sharing**: invite users to a note as viewer or editor, see what's been shared with you, and revoke access.
 - **Accounts**: GitHub OAuth or email/password (Argon2), cookie sessions, profile editing, data export and account deletion.
 - **8 languages**, including right-to-left Arabic, translated in both the UI and API error messages.
@@ -21,7 +20,6 @@ flowchart LR
     B[Browser] -->|HTTPS / WSS| N[nginx]
     N -->|/api/auth| A[auth<br/>Fastify + Drizzle]
     N -.->|auth_request /verify| A
-    N -->|/api/ai| R[ai-rag<br/>FastAPI]
     N -->|/api/notes| NS[notes<br/>Rust / Axum]
     N -->|/ws| E[editor<br/>Rust / Axum + yrs]
     N -->|/| F[frontend<br/>Nuxt 4 SSR]
@@ -29,10 +27,6 @@ flowchart LR
     A --> PG[(Postgres)]
     NS --> PG
     E --> PG
-    E -->|on save| I[ai-ingest]
-    I --> V[(pgvector)]
-    R --> V
-    R --> L[llm-gateway] --> O[Ollama / OpenAI-compatible]
     P[Prometheus] --> G
 ```
 
@@ -40,8 +34,8 @@ Design decisions worth calling out:
 
 - **Authentication happens once, at the edge.** nginx gates every protected route with an `auth_request` sub-request to the auth service, then injects the verified `X-User-Id` header (overwriting anything the client sent). Downstream services contain no session logic.
 - **Document content is a CRDT, metadata is relational.** The `notes` service owns titles, ownership and sharing as ordinary rows. The `editor` service keeps one in-memory Yjs document per note, relays updates over WebSockets, and persists the binary state.
-- **Rust on the hot paths.** Note CRUD and WebSocket sync are written in Rust (Axum, sqlx, yrs) for low overhead. Auth is TypeScript, and the AI pipeline is Python, where the embedding ecosystem is.
-- **Each service owns its data.** Auth and notes live in separate logical databases and reference each other only by user ID, so account deletion fans out explicitly to the notes and AI services.
+- **Rust on the hot paths.** Note CRUD and WebSocket sync are written in Rust (Axum, sqlx, yrs) for low overhead. Auth is TypeScript (Fastify + Drizzle).
+- **Each service owns its data.** Auth and notes live in separate logical databases and reference each other only by user ID, so account deletion explicitly calls the notes service to remove a user's notes.
 
 More detail: [database schema](DOCS/reference/database-schema.md), [monitoring architecture](DOCS/explanation/monitoring-architecture-prometheus-grafana.md), [collaboration internals](srcs/requirements/frontend/docs/dev/collab/overview.md).
 
@@ -50,13 +44,13 @@ More detail: [database schema](DOCS/reference/database-schema.md), [monitoring a
 | Layer | Technologies |
 | --- | --- |
 | Frontend | Nuxt 4, Vue 3, Pinia, Tailwind CSS, PrimeVue (Volt), TipTap, Yjs |
-| Services | Rust (Axum, sqlx, yrs), TypeScript (Fastify 5, Drizzle ORM), Python (FastAPI, LangChain) |
-| Data | PostgreSQL 16, pgvector |
+| Services | Rust (Axum, sqlx, yrs), TypeScript (Fastify 5, Drizzle ORM) |
+| Data | PostgreSQL 16 |
 | Infra | Docker Compose, nginx, Prometheus, Grafana, nginx/Postgres exporters |
 
 ## Running locally
 
-Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https://github.com/settings/developers) with the callback URL `https://localhost:8443/api/auth/login/github/callback`. The AI assistant also needs [Ollama](https://ollama.com) (run `DOCS/setup_ollama.sh`) or another OpenAI-compatible endpoint.
+Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https://github.com/settings/developers) with the callback URL `https://localhost:8443/api/auth/login/github/callback`.
 
 1. Create `srcs/.env`:
 
@@ -72,7 +66,6 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
    GITHUB_CLIENT_ID=<your OAuth app client ID>
    GITHUB_CALLBACK_URL=https://localhost:8443/api/auth/login/github/callback
    WEBSITE_URL=https://localhost:8443
-   LLM_BASE_URL=http://<host reachable from Docker>:11434/v1
    # UID=1000  GID=1000   # optional, for `make dev` file permissions
    ```
 

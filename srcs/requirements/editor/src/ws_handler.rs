@@ -53,21 +53,13 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 			}
 		};
 
-		let owner_id = match db::get_owner_id(&state.pool, note_id).await {
-			Ok(id) => id,
-			Err(_) => {
-				tracing::error!("Failed to resolve owner for note {}", note_id);
-				return;
-			}
-		};
-
 		match state.rooms.entry(note_id) {
 			dashmap::mapref::entry::Entry::Occupied(e) => {
 				e.get().clone()
 			}
 			dashmap::mapref::entry::Entry::Vacant(e) => {
 				tracing::info!("Loaded note {} from database", note_id);
-				let new_room = Arc::new(DocumentRoom::new(doc, owner_id));
+				let new_room = Arc::new(DocumentRoom::new(doc));
 				e.insert(new_room.clone());
 
 				let state_bg = state.clone();
@@ -84,7 +76,7 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 						if room_bg.dirty.load(Ordering::Acquire) {
 							tracing::debug!("Background save for note {}", note_id);
 							let doc_lock = room_bg.doc.read().await;
-							if db::save_note(&state_bg.pool, note_id, room_bg.owner_id, &doc_lock).await.is_ok() {
+							if db::save_note(&state_bg.pool, note_id, &doc_lock).await.is_ok() {
 								room_bg.dirty.store(false, Ordering::Release);
 							}
 						}
@@ -180,7 +172,7 @@ async fn handle_socket(socket: WebSocket, note_id: Uuid, state: Arc<AppState>, u
 		tracing::info!("Last user left room {}. Saving to DB...", note_id);
 		
 		let doc_lock = room.doc.read().await;
-		if let Err(_) = db::save_note(&state.pool, note_id, room.owner_id, &doc_lock).await {
+		if let Err(_) = db::save_note(&state.pool, note_id, &doc_lock).await {
 			tracing::error!("Failed to save note {} to DB upon closing.", note_id);
 		}
 		

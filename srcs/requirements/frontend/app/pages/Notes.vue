@@ -5,7 +5,6 @@ import Button from "@/volt/Button.vue";
 import Dialog from "@/volt/Dialog.vue";
 import SidebarLayout from "@/components/layouts/SidebarLayout.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
-import ChatSidebar from "@/components/notes/ChatSidebar.vue";
 import { useConfirm } from "primevue/useconfirm";
 import TimesIcon from "@primevue/icons/times";
 import { useNoteStore } from "@/stores/noteStore";
@@ -23,7 +22,6 @@ const authStore = useAuthStore();
 
 const isMobile = useMediaQuery('(max-width: 767px)');
 const sidebarOpen = ref(true);
-const chatOpen = ref(true);
 
 const noteEditorRef = ref<InstanceType<typeof NoteEditor> | null>(null);
 
@@ -275,11 +273,6 @@ await useAsyncData('notes', async () => {
 					@click="sidebarOpen = !sidebarOpen">
 					<IconBars class="w-4 h-4" />
 				</button>
-				<button
-					class="w-7 h-7 shrink-0 flex items-center justify-center rounded-md text-surface-400 hover:text-surface-700 hover:bg-surface-200 dark:hover:text-surface-200 dark:hover:bg-surface-700 transition-colors"
-					:title="chatOpen ? t('notes.chat.hide') : t('notes.chat.show')" @click="chatOpen = !chatOpen">
-					<IconChatBubble class="w-5 h-5" />
-				</button>
 			</div>
 
 			<template v-if="sidebarOpen">
@@ -348,7 +341,6 @@ await useAsyncData('notes', async () => {
 		<div v-if="mounted && activeNote"
 			class="flex flex-1 w-full h-full gap-4 flex-col md:flex-row overflow-y-auto md:overflow-y-visible">
 			<NoteEditor ref="noteEditorRef" :note-id="activeNote.id" class="flex-1" />
-			<ChatSidebar v-show="chatOpen" />
 		</div>
 		<div v-else-if="!activeNote" class="empty-state">{{ t('notes.empty') }}</div>
 

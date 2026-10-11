@@ -18,8 +18,6 @@ const contactEmail = 'myakoven@student.42berlin.de';
 			<p>{{ t('privacy.s1_2.body') }}</p>
 			<h3 class="font-medium mt-3 mb-1">{{ t('privacy.s1_3.title') }}</h3>
 			<p>{{ t('privacy.s1_3.body') }}</p>
-			<h3 class="font-medium mt-3 mb-1">{{ t('privacy.s1_4.title') }}</h3>
-			<p>{{ t('privacy.s1_4.body') }}</p>
 			<h3 class="font-medium mt-3 mb-1">{{ t('privacy.s1_5.title') }}</h3>
 			<p class="mb-2">{{ t('privacy.s1_5.intro') }}</p>
 			<ul class="list-disc pl-6 mb-2 space-y-1">
@@ -42,7 +40,6 @@ const contactEmail = 'myakoven@student.42berlin.de';
 				<li>{{ t('privacy.s3.account') }}</li>
 				<li>{{ t('privacy.s3.session') }}</li>
 				<li>{{ t('privacy.s3.content') }}</li>
-				<li>{{ t('privacy.s3.ai') }}</li>
 				<li>{{ t('privacy.s3.metrics') }}</li>
 			</ul>
 		</section>
@@ -54,8 +51,7 @@ const contactEmail = 'myakoven@student.42berlin.de';
 
 		<section class="mb-6">
 			<h2 class="text-lg font-semibold mb-2">{{ t('privacy.s5.title') }}</h2>
-			<p class="mb-2">{{ t('privacy.s5.github') }}</p>
-			<p>{{ t('privacy.s5.ai') }}</p>
+			<p>{{ t('privacy.s5.github') }}</p>
 		</section>
 
 		<section class="mb-6">
@@ -68,7 +64,6 @@ const contactEmail = 'myakoven@student.42berlin.de';
 			<ul class="list-disc pl-6 space-y-1">
 				<li>{{ t('privacy.s7.sessions') }}</li>
 				<li>{{ t('privacy.s7.account') }}</li>
-				<li>{{ t('privacy.s7.embeddings') }}</li>
 				<li>{{ t('privacy.s7.logs') }}</li>
 			</ul>
 		</section>
@@ -91,7 +86,6 @@ const contactEmail = 'myakoven@student.42berlin.de';
 			<ul class="list-disc pl-6 space-y-1">
 				<li>{{ t('privacy.s9.sessions') }}</li>
 				<li>{{ t('privacy.s9.notes') }}</li>
-				<li>{{ t('privacy.s9.embeddings') }}</li>
 			</ul>
 			<p class="mt-2">{{ t('privacy.s9.permanent') }}</p>
 		</section>

@@ -38,8 +38,6 @@ Each client receives the current state vector and awareness info on connect. Liv
 
 A background task runs a debounced save loop (every 5 seconds) for each active room. If the document has been modified (`dirty` flag), it encodes the full CRDT state and writes it back to `note_states`. When the last client disconnects, a final save is triggered and the room is removed from memory.
 
-After each save, the service fires a non-blocking POST to the AI ingest service with the binary state (base64-encoded).
-
 ### Awareness
 
 Cursor positions, user colors, and selection state are relayed between clients via y-sync awareness messages. These are held in memory for new joiners but are never applied to the CRDT document and never persisted.
@@ -53,5 +51,4 @@ Cursor positions, user colors, and selection state are relayed between clients v
 - [sqlx](https://github.com/launchbadge/sqlx) (PostgreSQL)
 - [yrs](https://github.com/y-crdt/y-crdt) / [y-sync](https://github.com/y-crdt/y-crdt) (Yjs CRDT)
 - [dashmap](https://github.com/xacrimon/dashmap) (concurrent room map)
-- [reqwest](https://github.com/seanmonstar/reqwest) (AI ingest HTTP client)
 - [tracing](https://github.com/tokio-rs/tracing) (structured logging)

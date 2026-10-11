@@ -8,7 +8,6 @@ import * as argon2 from "argon2";
 import { authMeTotal } from "../metrics";
 
 const notesServiceBaseUrl = process.env.NOTES_SERVICE_URL ?? "http://notes:3003";
-const aiIngestServiceBaseUrl = process.env.AI_INGEST_SERVICE_URL ?? "http://ai-ingest:8002";
 
 type NotesExportItem = {
 	id: string;
@@ -334,12 +333,6 @@ export const userManagementRoutes: FastifyPluginAsyncTypebox = async (server) =>
 				error: "Failed to delete user notes.",
 				upstreamStatus: deleteNotesResponse.status || undefined,
 			});
-		}
-
-		try {
-			await fetch(`${aiIngestServiceBaseUrl}/embeddings/by-user/${session.userId}`, { method: "DELETE" });
-		} catch (_err) {
-			server.log.warn("Could not reach ai-ingest to delete embeddings for user %s", session.userId);
 		}
 
 		await server.db.delete(schema.users).where(eq(schema.users.id, session.userId));

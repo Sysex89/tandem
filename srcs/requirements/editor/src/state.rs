@@ -14,20 +14,16 @@ pub struct DocumentRoom {
 	pub awareness: Arc<RwLock<Awareness>>,
 	pub clients: DashMap<usize, UnboundedSender<Message>>,
 	pub dirty: AtomicBool,
-	// Resolved once at room creation and used for all saves / AI ingestion,
-	// regardless of which user is currently editing.
-	pub owner_id: Uuid,
 }
 
 impl DocumentRoom {
-	pub fn new(doc: Doc, owner_id: Uuid) -> Self {
+	pub fn new(doc: Doc) -> Self {
 		let awareness = Arc::new(RwLock::new(Awareness::new(doc.clone())));
 		Self {
 			doc: Arc::new(RwLock::new(doc)),
 			awareness,
 			clients: DashMap::new(),
 			dirty: AtomicBool::new(false),
-			owner_id,
 		}
 	}
 }

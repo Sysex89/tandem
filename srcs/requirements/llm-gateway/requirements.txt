@@ -1,6 +1,0 @@
-fastapi==0.110.0
-uvicorn==0.27.1
-openai==1.13.3
-httpx==0.27.0
-sse-starlette==2.0.0
-python-dotenv==1.0.1

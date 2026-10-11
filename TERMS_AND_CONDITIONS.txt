@@ -47,8 +47,7 @@ Service. We do not claim intellectual property rights over your Content.
 3.2 License to operate. By storing Content on the Service, you grant us a
 limited, non-exclusive license to store, process, transmit, and display
 your Content solely for the purpose of providing and maintaining the
-Service. This includes synchronizing Content across collaborative sessions
-and generating vector embeddings for the AI assistant feature.
+Service. This includes synchronizing Content across collaborative sessions.
 
 3.3 Collaborative editing. The Service supports real-time collaborative
 editing. When you share a note or collaborate with other users, those users
@@ -56,13 +55,7 @@ may view, edit, and modify the shared Content. You acknowledge that
 collaborative edits are merged automatically and may not be individually
 reversible.
 
-3.4 AI assistant. The Service includes an AI-powered assistant that uses
-your note content to answer queries. Note text is processed into vector
-embeddings stored in a separate database. The AI assistant operates on
-notes you own and notes shared with you. No content is sent to external
-AI providers; all processing uses locally hosted models.
-
-3.5 Content format. Document bodies are stored as binary CRDT state vectors.
+3.4 Content format. Document bodies are stored as binary CRDT state vectors.
 We do not guarantee that Content can be exported in any particular format
 beyond what the Service's interface provides.
 
@@ -92,7 +85,7 @@ pose a risk to other users or the Service.
 
 5.2 You may delete your account at any time from your Account settings.
 Account deletion will remove your sessions, linked provider accounts, notes,
-AI-generated embeddings, and all other data associated with your account.
+and all other data associated with your account.
 See our Privacy Policy for full details on what is deleted.
 
 5.3 You may export your personal data at any time from your Account

@@ -1,6 +1,6 @@
 # Database schema
 
-Three logical databases across two PostgreSQL 16 instances. User IDs cross database boundaries without foreign keys, so cleanup on account deletion is done explicitly by the auth service (it calls notes and ai-ingest).
+Two logical databases in one PostgreSQL 16 instance. User IDs cross database boundaries without foreign keys, so cleanup on account deletion is done explicitly by the auth service (it calls the notes service).
 
 ## Auth database
 
@@ -22,11 +22,3 @@ Shared by `notes` (metadata, sharing) and `editor` (document state). Schema in `
 | `note_states` | `note_id` (UUID PK, FK → notes, cascade), `state_vector` (BYTEA), `last_saved_at` | Persisted Yjs document, 1:1 with `notes` |
 | `share` | `id` (UUID PK), `note_id` (FK → notes, cascade), `guest_id` (UUID), `access_role` (enum `access_type`: View/Edit/Owner, default View), `created_at`, `updated_at` | Unique on (note_id, guest_id), nulls not distinct |
 
-
-## Vector database
-
-Separate pgvector instance (`vector-db`), written by `ai-ingest` and read by `ai-rag`. Schema in `srcs/requirements/vector-db/init/01-init.sql`.
-
-| Table | Columns | Notes |
-| --- | --- | --- |
-| `embeddings` | `id` (UUID PK), `note_id`, `user_id`, `content` (text chunk), `embedding` (`vector(1024)`) | No index yet; similarity search is a sequential scan |

@@ -187,72 +187,9 @@ services:
     networks:
       - transcendence
 
-  # --- AI & RAG Infrastructure ---
-  
-  vector-db:
-    build: ./requirements/vector-db
-    image: vector-db
-    container_name: vector-db
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: vector_db
-    volumes:
-      - vector_data:/var/lib/postgresql/data
-    networks:
-      - transcendence
-
-  ai-ingest:
-    build: ./requirements/ai-ingest
-    image: ai-ingest
-    container_name: ai-ingest
-    restart: always
-    environment:
-      VECTOR_DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@vector-db:5432/vector_db
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-ollama}
-      LLM_BASE_URL: ${LLM_BASE_URL}
-      LLM_EMBEDDING_MODEL: mxbai-embed-large
-    depends_on:
-      - vector-db
-    networks:
-      - transcendence
-
-  ai-rag:
-    build: ./requirements/ai-rag
-    image: ai-rag
-    container_name: ai-rag
-    restart: always
-    environment:
-      VECTOR_DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@vector-db:5432/vector_db
-      MAIN_DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
-      LLM_GATEWAY_URL: http://llm-gateway:8001/stream
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-ollama}
-      LLM_BASE_URL: ${LLM_BASE_URL}
-      LLM_EMBEDDING_MODEL: mxbai-embed-large
-    depends_on:
-      - vector-db
-      - llm-gateway
-    networks:
-      - transcendence
-
-  llm-gateway:
-    build: ./requirements/llm-gateway
-    image: llm-gateway
-    container_name: llm-gateway
-    restart: always
-    environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-ollama}
-      LLM_MODEL: llama3
-      LLM_BASE_URL: ${LLM_BASE_URL}
-    networks:
-      - transcendence
-
 volumes:
   postgres_data:
     name: mycelium_db
-  vector_data:
-    name: mycelium_vector
   prometheus_data:
     name: mycelium_prometheus
   grafana_data:

@@ -28,15 +28,7 @@ Notes you create — including titles, metadata, and collaborative document
 state — are stored in our database. Document bodies are stored as binary
 CRDT (Yjs/Yrs) state vectors, not plain text.
 
-1.4 AI-generated data
-
-When you use the AI assistant feature, the text content of your notes is
-split into chunks, converted into numerical vector embeddings, and stored
-in a separate vector database. These embeddings are used to retrieve
-relevant context when you query the AI assistant. The embeddings are tied
-to your user ID and note ID.
-
-1.5 Cookies
+1.4 Cookies
 
 We set two cookies:
 
@@ -48,7 +40,7 @@ We do not use advertising, analytics, or tracking cookies. Both cookies
 are strictly necessary for the operation of the Service and do not require
 separate consent under the ePrivacy Directive.
 
-1.6 Server logs and metrics
+1.5 Server logs and metrics
 
 Application logs may contain request metadata (timestamps, URLs, status
 codes). Sensitive fields — request bodies containing passwords, cookie
@@ -74,8 +66,6 @@ User-Agent string stored in your session record.
   session anomalies, and comply with security best practices.
 - Content: to provide the note-taking and real-time collaboration features
   of the Service.
-- AI embeddings: to power contextual retrieval for the AI assistant feature.
-  Embeddings are derived only from your own notes and notes shared with you.
 - Operational metrics: to monitor service health, performance, and error
   rates.
 
@@ -95,14 +85,10 @@ only when you choose to sign in via GitHub OAuth. In that flow, GitHub
 receives a standard OAuth authorization request and returns your profile
 information. GitHub's own privacy policy governs its handling of that data.
 
-The AI assistant may use a locally hosted language model (e.g. Ollama).
-No note content or queries are sent to external AI providers.
-
 
 6. Data Storage and Security
 
-All data is stored in self-hosted PostgreSQL databases: one for account and
-note data, and one for vector embeddings used by the AI assistant.
+All account and note data is stored in a self-hosted PostgreSQL database.
 Passwords are hashed with Argon2 and never stored or logged in cleartext.
 Session secrets and database credentials are managed via Docker secrets
 files. Communication between the browser and the server passes through an
@@ -113,7 +99,6 @@ Nginx reverse proxy configured with TLS.
 
 - Sessions are automatically deleted after their seven-day expiry.
 - Account and note data are retained for as long as your account exists.
-- Vector embeddings are retained for as long as the associated notes exist.
 - Server logs are retained according to your deployment's log-rotation
   configuration.
 
@@ -141,8 +126,6 @@ deletion cascades to:
   foreign-key constraints with ON DELETE CASCADE).
 - All notes owned by the account and their dependent collaborative state
   entries (orchestrated in application code via the notes service).
-- All vector embeddings associated with the account (deleted via the AI
-  ingest service).
 
 Deletion is permanent and cannot be undone.
 
