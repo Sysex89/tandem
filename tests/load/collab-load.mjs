@@ -16,7 +16,7 @@ import { availableParallelism } from "node:os";
 import { writeFileSync } from "node:fs";
 import { parseArgs, promisify } from "node:util";
 import { Worker } from "node:worker_threads";
-import { Agent } from "undici";
+import { Agent, fetch } from "undici";
 
 const { values: opts } = parseArgs({
 	options: {
