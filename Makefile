@@ -16,26 +16,21 @@ MODULE_VOLUMES := \
 	$(PROJECT_NAME)_auth_node_modules
 
 # Tear down first so volumes are not still mounted by running containers.
-all: getuser
+all:
 	$(COMPOSE) down $(FLAGS)
 	@$(MAKE) up
 
-getuser:
-# 	@touch srcs/.env
-# 	@grep -q '^UID=' srcs/.env && sed -i.bak "s/^UID=.*/UID=$$(id -u)/" srcs/.env && rm -f srcs/.env.bak || echo "UID=$$(id -u)" >> srcs/.env
-# 	@grep -q '^GID=' srcs/.env && sed -i.bak "s/^GID=.*/GID=$$(id -g)/" srcs/.env && rm -f srcs/.env.bak || echo "GID=$$(id -g)" >> srcs/.env
-
-up: getuser
+up:
 	$(COMPOSE) up -d --build $(FLAGS)
 
-live: getuser
+live:
 	$(COMPOSE) up --build
 
-down: getuser
+down:
 	$(COMPOSE) down $(FLAGS)
 	@$(MAKE) cleanv
 
-clean: getuser
+clean:
 	$(COMPOSE) down --rmi all $(FLAGS)
 	@$(MAKE) cleanv
 
@@ -46,10 +41,9 @@ cleanv:
 	@echo "Cleaning frontend build cache..."
 	@-docker volume rm $(FRONTEND_CACHE_VOLUMES) 2>/dev/null
 	@docker image prune -f
-	docker volume ls --filter "label=com.docker.compose.project=mycelium" -q | xargs docker volume rm    
 
 # Destructive: will destroy databases, both notes and users
-fclean: getuser
+fclean:
 	@echo "Removing all volumes..."
 	$(COMPOSE) down -v --rmi all $(FLAGS)
 
@@ -61,25 +55,17 @@ wipe: fclean
 
 re: clean up
 
-dev: getuser
+dev:
 	docker compose -f srcs/docker-compose-dev.yml up -d --build $(FLAGS)
 
 # ex: make rebuild service=frontend
-rebuild: getuser
+rebuild:
 	$(COMPOSE) up -d --build --no-deps $(service)
 
-logs: getuser
+logs:
 	$(COMPOSE) logs -f $(service)
 
-getlogs: 
+getlogs:
 	$(COMPOSE) logs > all-docker-logs-$(shell date +%Y-%m-%d_%H-%M-%S).txt 2>&1
-	
-.PHONY: all up down clean cleanv fclean wipe clean_pnpm_volumes re logs
 
-# Potential volume cleanup to remove everything except data volumes:
-# docker volume ls -q | grep -v 'mycelium_db' | grep -v 'mycelium_vector' | grep -v 'mycelium_grafana' | grep -v 'mycelium_prometheus' | xargs -I {} docker volume rm {}
-
-#  # docker volume ls --filter "label=com.docker.compose.project=mycelium" -q | xargs docker volume rm      
-
-## @docker volume ls -q | grep -E '^(srcs_|mycelium_|db$$)' | xargs docker volume rm 2>/dev/null; true
-
+.PHONY: all up live down clean cleanv fclean wipe re dev rebuild logs getlogs

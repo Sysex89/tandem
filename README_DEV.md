@@ -27,4 +27,4 @@ If things act weird, your first step should be to purge the volumes. We have add
 
 If you see `EACCES` or permission denied errors, it's usually because files created inside the container (by `root`) are not editable by you (uid `1000` or `501`).
 
-*   **Fix**: Add `UID=<output of id -u>` and `GID=<output of id -g>` to `srcs/.env`, then rebuild with `make dev`. The dev images (`docker-compose-dev.yml`) use these to map permissions correctly; they default to 1000. (The automatic `make getuser` step is currently disabled in the Makefile.)
+*   **Fix**: Add `UID=<output of id -u>` and `GID=<output of id -g>` to `srcs/.env`, then rebuild with `make dev`. The dev images (`docker-compose-dev.yml`) use these to map permissions correctly; they default to 1000.

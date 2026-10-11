@@ -3,7 +3,7 @@
 # ==========================================
 FROM node:20-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 WORKDIR /app
 
 # copy these 2 files first so there is no new npm install if the file has not changed

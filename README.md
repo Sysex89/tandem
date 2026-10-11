@@ -1,186 +1,110 @@
-# **Mycelium Notes**
+# Mycelium Notes
 
-*This project has been created as part of the 42 curriculum by [adiler], [grmullin], [maahoff], [myakoven], [pvasilan].*
+A self-hosted note-taking app with real-time collaborative editing and an AI assistant that answers questions from your own notes.
 
-# Part 1: General README
+<!-- TODO: screenshot / GIF of two cursors editing the same note + the chat sidebar -->
 
-## **I. Description**
+## Features
 
-A modular open-source personal knowledge management system with built-in real-time collaboration.
+- **Real-time collaboration**: several people edit the same note at once, with live cursors. Built on Yjs CRDTs, so concurrent edits merge without conflicts and survive reconnects.
+- **Ask your notes**: a chat sidebar backed by retrieval-augmented generation (RAG). Note content is embedded into pgvector, and answers are streamed from a local LLM (Ollama) or any OpenAI-compatible API. Retrieval is limited to notes you have access to.
+- **Sharing**: invite users to a note as viewer or editor, see what's been shared with you, and revoke access.
+- **Accounts**: GitHub OAuth or email/password (Argon2), cookie sessions, profile editing, data export and account deletion.
+- **8 languages**, including right-to-left Arabic, translated in both the UI and API error messages.
+- **Observability**: Prometheus metrics from the app services, nginx and Postgres, with pre-built Grafana dashboards.
+- **Server-side rendering** with Nuxt, plus light/dark themes.
 
-## **II. Instructions**
+## Architecture
 
-### Prerequisites
-
-* Docker Engine with Compose v2 (`docker compose` subcommand).
-* A GitHub OAuth App for authentication (Client ID and Client Secret).
-* `make` (GNU Make).
-
-### Setup
-
-1. **Environment variables** — Create `srcs/.env` with the following variables (optionally add `UID`/`GID` to match your host user for `make dev`; they default to 1000):
-
-```
-DB_USER=<postgres superuser>
-DB_PASSWORD=<postgres superuser password>
-DB_NAME=<main database name>
-AUTH_DB_USER=<auth service db user>
-AUTH_DB_NAME=<auth service db name>
-POSTGRES_ADDR=postgres
-POSTGRES_PORT=5432
-GITHUB_CLIENT_ID=<your GitHub OAuth app client ID>
-GITHUB_CALLBACK_URL=https://localhost:8443/api/auth/github/callback
-AUTH_PORT=3000
-NOTES_ADDR=http://notes:3003
-NOTES_PORT=3003
-FRONTEND_ADDR=http://frontend:3000
-FRONTEND_PORT=3000
-WEBSITE_URL=https://localhost:8443
+```mermaid
+flowchart LR
+    B[Browser] -->|HTTPS / WSS| N[nginx]
+    N -->|/api/auth| A[auth<br/>Fastify + Drizzle]
+    N -.->|auth_request /verify| A
+    N -->|/api/ai| R[ai-rag<br/>FastAPI]
+    N -->|/api/notes| NS[notes<br/>Rust / Axum]
+    N -->|/ws| E[editor<br/>Rust / Axum + yrs]
+    N -->|/| F[frontend<br/>Nuxt 4 SSR]
+    N -->|/grafana| G[Grafana]
+    A --> PG[(Postgres)]
+    NS --> PG
+    E --> PG
+    E -->|on save| I[ai-ingest]
+    I --> V[(pgvector)]
+    R --> V
+    R --> L[llm-gateway] --> O[Ollama / OpenAI-compatible]
+    P[Prometheus] --> G
 ```
 
-2. **Secrets** — Copy the example secrets directory and fill in real values (one value per file):
+Design decisions worth calling out:
 
-```bash
-cp -r srcs/secrets.example srcs/secrets
-```
+- **Authentication happens once, at the edge.** nginx gates every protected route with an `auth_request` sub-request to the auth service, then injects the verified `X-User-Id` header (overwriting anything the client sent). Downstream services contain no session logic.
+- **Document content is a CRDT, metadata is relational.** The `notes` service owns titles, ownership and sharing as ordinary rows. The `editor` service keeps one in-memory Yjs document per note, relays updates over WebSockets, and persists the binary state.
+- **Rust on the hot paths.** Note CRUD and WebSocket sync are written in Rust (Axum, sqlx, yrs) for low overhead. Auth is TypeScript, and the AI pipeline is Python, where the embedding ecosystem is.
+- **Each service owns its data.** Auth and notes live in separate logical databases and reference each other only by user ID, so account deletion fans out explicitly to the notes and AI services.
 
-The following secret files must be populated: `auth_db_password`, `github_client_secret`, `session_secret_key`, `grafana_admin_user`, `grafana_admin_password`, `todo_db_password`.
+More detail: [database schema](DOCS/reference/database-schema.md), [monitoring architecture](DOCS/explanation/monitoring-architecture-prometheus-grafana.md), [collaboration internals](srcs/requirements/frontend/docs/dev/collab/overview.md).
 
-### Execution
+## Tech stack
 
-```bash
-make up        # Build all images and start in detached mode
-make live      # Build and start in foreground (logs stream to terminal)
-make down      # Stop all containers and remove node_modules / frontend build cache volumes
-make logs      # Follow logs (optionally: make logs service=auth)
-make clean     # Stop containers and remove images
-make cleanv    # Remove node_modules and frontend build cache volumes (keeps databases)
-make fclean    # Destructive: removes everything including database volumes
-make re        # clean + rebuild
-make dev       # Dev mode: bind-mounted frontend/auth source with hot reload
-make rebuild service=<name>  # Rebuild and restart a single service
-```
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Nuxt 4, Vue 3, Pinia, Tailwind CSS, PrimeVue (Volt), TipTap, Yjs |
+| Services | Rust (Axum, sqlx, yrs), TypeScript (Fastify 5, Drizzle ORM), Python (FastAPI, LangChain) |
+| Data | PostgreSQL 16, pgvector |
+| Infra | Docker Compose, nginx, Prometheus, Grafana, nginx/Postgres exporters |
 
-The application is accessible at `https://localhost:8443` (self-signed certificate — accept the browser warning). Grafana dashboards are at `https://localhost:8443/grafana/`.
+## Running locally
 
-## **III. Resources**
+Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https://github.com/settings/developers) with the callback URL `https://localhost:8443/api/auth/login/github/callback`. The AI assistant also needs [Ollama](https://ollama.com) (run `DOCS/setup_ollama.sh`) or another OpenAI-compatible endpoint.
 
-* List documentation and tutorials used.
+1. Create `srcs/.env`:
 
-# Part 2: 42 Berlin defense documentation
+   ```env
+   DB_USER=mycelium
+   DB_PASSWORD=change-me
+   DB_NAME=mycelium
+   AUTH_DB_USER=auth
+   AUTH_DB_NAME=auth
+   POSTGRES_ADDR=postgres
+   NOTES_ADDR=http://notes:3003
+   AUTH_PORT=3000
+   GITHUB_CLIENT_ID=<your OAuth app client ID>
+   GITHUB_CALLBACK_URL=https://localhost:8443/api/auth/login/github/callback
+   WEBSITE_URL=https://localhost:8443
+   LLM_BASE_URL=http://<host reachable from Docker>:11434/v1
+   # UID=1000  GID=1000   # optional, for `make dev` file permissions
+   ```
 
-## Team information
+2. Create the secrets (one value per file):
 
-Ahmed Diler - Developer
+   ```bash
+   cp -r srcs/secrets.example srcs/secrets
+   # then edit: auth_db_password, github_client_secret, session_secret_key,
+   #            grafana_admin_user, grafana_admin_password
+   ```
 
-Maarten Hoff - Technical Lead, Developer
+3. Start it:
 
-Masha Yakovenko - Product Owner, Developer
+   ```bash
+   make up
+   ```
 
-Pavlos Vasilantonakis - Project Manager
+   Open **https://localhost:8443** and accept the self-signed certificate warning. Grafana is at `/grafana/`.
 
-Grace Mullin - Developer
+| Command | What it does |
+| --- | --- |
+| `make up` / `make live` | Build and start (detached / foreground) |
+| `make dev` | Dev mode: frontend and auth source bind-mounted with hot reload |
+| `make rebuild service=<name>` | Rebuild and restart one service |
+| `make logs service=<name>` | Follow logs |
+| `make down` | Stop, and clear `node_modules` / Nuxt cache volumes |
+| `make fclean` | **Destructive.** Also deletes all database volumes |
 
-## **IV. Project management**
+Troubleshooting stale volumes and file permissions: [README_DEV.md](README_DEV.md).
 
-* **Organization**: Features were decided early. The main sync-time was a weekly in-person meeting with additional video calls between subsets of the team. Team members expressed interest in specific subject modules early and were encouraged to take ownership. The product owner was tasked with mantaining a forward momentum, the technical lead was asked to solve any ties in relation to tech and the project lead attempted to partially disengage from the everyday coding in order to keep the rest of the team motivated.
+## Credits
 
-* **Tools**: 
-    Github Issues for matching commits to issues
-    Slack for everyday communication
-    Github projects for the gratification of the Project Manager
+Mycelium Notes was built at 42 Berlin as a team project by **Ahmed Diler**, **Maarten Hoff**, **Masha Yakovenko**, **Grace Mullin** and **Pavlos Vasilantonakis**, with contributions from others listed in the commit history. The original repository is [MySeaLeeOom/basic_structure](https://github.com/MySeaLeeOom/basic_structure); the original project write-up is preserved in [DOCS/42-origins.md](DOCS/42-origins.md).
 
-## **V. Technical stack**
-
-* **Frontend**: Nuxt 4 / Vue 3 with TailwindCSS, PrimeVue, and Pinia. TipTap provides the rich-text editor; Yjs and y-websocket handle real-time collaborative editing via CRDTs. Framework choice satisfies the 42 curriculum requirement.
-* **Auth service** (TypeScript): Fastify 5 with Drizzle ORM. Handles OAuth (GitHub, Google, 42) and local password auth (Argon2). Session-based authentication with cookie tokens. Exposes Prometheus metrics via `prom-client`.
-* **Notes service** (Rust): Axum + sqlx. CRUD API for note metadata. Chosen for low overhead on a high-frequency path.
-* **Editor service** (Rust): Axum with WebSocket support + Yrs/y-sync. Persists Yjs CRDT document state to PostgreSQL. Handles real-time sync between collaborating clients.
-* **Database**: PostgreSQL 16. Two logical databases in a single instance — one for auth (users, accounts, sessions), one for notes and document state. Relational model fits the structured data; UUID primary keys throughout.
-* **Infrastructure**: Docker Compose orchestrates 10 services behind an Nginx reverse proxy. Nginx gates `/api/notes` and `/ws/` routes through an `auth_request` subrequest to the auth service. Prometheus scrapes all application and infrastructure targets; Grafana provides pre-provisioned dashboards. Exporters for Nginx and PostgreSQL round out observability.
-
-## **VI. Database schema**
-
-Two logical databases in a single PostgreSQL 16 instance.
-
-**Auth database** (Drizzle ORM, migrations in `auth/drizzle/`):
-
-| Table | Columns | Notes |
-| --- | --- | --- |
-| `users` | `id` (UUID PK), `email` (unique), `login_name` (unique, not null), `image_url`, `role` (enum: user/admin), `status` (enum: active/blocked/suspended), `created_at` | Central identity table |
-| `accounts` | `id` (UUID PK), `user_id` (FK → users, cascade), `provider` (enum: github/local/google/42), `provider_account_id`, `password_hash` | Unique on (provider, provider_account_id). One user can have multiple provider accounts |
-| `sessions` | `id` (UUID PK), `user_id` (FK → users, cascade), `token` (UUID, unique), `expires_at`, `user_agent`, `ip_address` | Cookie-based session tracking |
-
-**Main database** (SQL init in `postgres/init/02-init.sql`):
-
-| Table | Columns | Notes |
-| --- | --- | --- |
-| `notes` | `id` (UUID PK), `title` (varchar 255), `owner_id` (UUID), `created_at`, `updated_at` | Note metadata |
-| `note_states` | `note_id` (UUID PK, FK → notes, cascade), `state_vector` (BYTEA), `last_saved_at` | Persisted Yjs CRDT state, 1:1 with `notes` |
-| `share` | `id` (UUID PK), `note_id` (UUID, FK → notes, cascade), `guest_id` (UUID), `role` (varchar 50, default 'View'), `created_at`, `updated_at` | Note sharing; unique (note_id, guest_id) |
-
-
-**Key relations**: one user → many accounts (multi-provider auth), one user → one session, one note → one note_state, one note -> many share. All foreign keys cascade on delete.
-
-## **VII. Features list**
-
-## **VIII. Modules & points**
-
-Calculate your path to the 14-point minimum.
-
-| Module | Category | Type | Points |
-| --- | --- | --- | --- |
-| Frameworks (Vue + Axum) | Web | Major | 2 | 
-| Microservices | DevOps | Major | 2 |
-| Monitoring System with Grafana and Prometheus | DevOps | Major | 2 |
-| RAG System | AI | Major | 2 |
-| LLM System Interface | AI | Major | 2 |
-| Web-socket communication | Web | Major | 2 |
-| Real-time collaboration | Web | Minor | 1 |
-| Server-Side Rendering | Web | Minor | 1 |
-| Support for multiple languages | Accesibility | Minor | 1 |
-| Support for rtl | Accesibility | Minor | 1 |
-| Support for 2 additional browsers [Firefox, Konqueror] | Accesibility | Minor | 1 |
-| OAuth Authentication | User Management | Minor | 1 |
-|ORM system | Web | Minor | 1 |
-|Standard user management|User Management | Major | 2|
-| GDPR compliance | Data | Minor | 1 |
-| **Total estimated** | | | **18** |
-
-## **IX. Individual contributions**
-
-Frameworks/Microservices: Ahmed, Maarten, Masha
-
-Web-Sockets: Ahmed, Maarten, Masha, Pavlos
-
-Authentication: Masha
-
-Frontend and SSR: Masha, Ahmed, Grace
-
-Notes API: Maarten, Masha
-
-Monitoring/Browser Testing: Pavlos
-
-RAG/LLM: Maarten, Ahmed
-
-Localization: Grace
-
-## **X. AI usage**
-Pavlos: Used AI to research the pros and cons of different stacks, for detecting code smells, for changes that needed multi-file editing to make sure all contact points were adequately worked on and for the creation of tutorials and learning material for the project
-Maarten: Used AI for research, brainstorming, structure/idea validation, writing repetitive code, and double-checking documentation.
-Masha: Used AI for research, writing repetetive code, assistance with learning frameworks like Fastify, tutorials, assistance with tricky styling issues, keeping track of refactors and changes that needed multifile editing, particularly for UI bugs.
-
-## **Future Features**
-What in-theory would be an obvious next step:
-
-    user management with accounts
-    
-    extended dashboards
-    
-    sentiment analysis and semantic tagging
-    
-    friends and networks (?)
-    
-    backlinks
-
----
+This fork is maintained by Pavlos Vasilantonakis.
