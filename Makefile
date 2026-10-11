@@ -69,10 +69,10 @@ e2e:
 # Notes service tests (needs cargo). #[sqlx::test] creates a database per test in a
 # throwaway Postgres container, which is removed afterwards.
 test-notes:
-	@docker run -d --rm --name mycelium-test-pg -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16-alpine >/dev/null
-	@until docker exec mycelium-test-pg pg_isready -h localhost -U postgres >/dev/null 2>&1; do sleep 1; done
+	@docker run -d --rm --name tandem-test-pg -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16-alpine >/dev/null
+	@until docker exec tandem-test-pg pg_isready -h localhost -U postgres >/dev/null 2>&1; do sleep 1; done
 	@cd srcs/requirements/notes && DATABASE_URL=postgres://postgres:test@localhost:55432/postgres cargo test; \
-		status=$$?; docker stop mycelium-test-pg >/dev/null; exit $$status
+		status=$$?; docker stop tandem-test-pg >/dev/null; exit $$status
 
 # Collaboration load test against a running stack; see DOCS/explanation/load-test.md
 load:

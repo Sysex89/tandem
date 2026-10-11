@@ -1,7 +1,7 @@
 import { expect, request, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 
 export const BASE_URL = process.env.BASE_URL ?? "https://localhost:8443";
-const PASSWORD = "mycelium-e2e";
+const PASSWORD = "tandem-e2e";
 
 export type User = { name: string; id: string; api: APIRequestContext };
 

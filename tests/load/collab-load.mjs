@@ -39,7 +39,7 @@ const cursors = !opts["no-cursors"];
 const stalledCount = Number(opts.stalled);
 const workerCount = Number(opts.workers);
 const wsUrl = `${opts.base.replace(/^http/, "ws")}/ws`;
-const PASSWORD = "mycelium-load";
+const PASSWORD = "tandem-load";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // --- HTTP setup through nginx (self-signed certificate in the demo) -----------

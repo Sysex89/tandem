@@ -1,6 +1,6 @@
 # Origins: 42 Berlin ft_transcendence
 
-Mycelium Notes started as the final group project of the 42 Berlin core curriculum (ft_transcendence). This is the original defense write-up, kept as it was at evaluation time. The "Database schema" section is out of date; see [reference/database-schema.md](reference/database-schema.md) for the current schema.
+Tandem started as **Mycelium Notes**, the final group project of the 42 Berlin core curriculum (ft_transcendence). This is the original defense write-up, kept as it was at evaluation time. The "Database schema" section is out of date; see [reference/database-schema.md](reference/database-schema.md) for the current schema.
 
 
 ## Team information

@@ -124,7 +124,7 @@ jobs:
       - name: Build the slow images with a per-service layer cache
         run: |
           for s in auth frontend notes editor; do
-            docker buildx build --load -t "mycelium-$s" \
+            docker buildx build --load -t "tandem-$s" \
               --cache-from "type=gha,scope=$s" \
               --cache-to "type=gha,scope=$s,mode=max" \
               "srcs/requirements/$s"

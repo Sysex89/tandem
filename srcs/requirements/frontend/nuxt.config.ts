@@ -8,6 +8,8 @@ export default defineNuxtConfig({
 	css: ["~/assets/base.css"],
 	app: {
 		head: {
+			title: "Tandem",
+			link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
 			script: [
 				{
 					innerHTML: `(function(){var s=localStorage.getItem('theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})()`,

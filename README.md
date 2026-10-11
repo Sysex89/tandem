@@ -1,8 +1,8 @@
-# Mycelium Notes
+# Tandem
 
 [![CI](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml/badge.svg)](https://github.com/Sysex89/very_yum/actions/workflows/ci.yml)
 
-A self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
+Write together, in real time. Tandem is a self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
 
 ![Two users editing the same note, each seeing the other's live cursor](DOCS/img/collaboration.png)
 
@@ -76,8 +76,8 @@ This generates `srcs/.env` and `srcs/secrets/` (existing files are left untouche
 
 | User | Password |
 | --- | --- |
-| `alice` | `mycelium-demo` |
-| `bob` | `mycelium-demo` |
+| `alice` | `tandem-demo` |
+| `bob` | `tandem-demo` |
 
 Open **https://localhost:8443**, accept the self-signed certificate, and log in as each user in two different browsers (or a normal and a private window) to watch edits and cursors sync live. GitHub login is disabled in the demo.
 
@@ -90,9 +90,9 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
 1. Create `srcs/.env`:
 
    ```env
-   DB_USER=mycelium
+   DB_USER=tandem
    DB_PASSWORD=change-me
-   DB_NAME=mycelium
+   DB_NAME=tandem
    AUTH_DB_USER=auth
    AUTH_DB_NAME=auth
    POSTGRES_ADDR=postgres
@@ -143,6 +143,6 @@ Troubleshooting stale volumes and file permissions: [README_DEV.md](README_DEV.m
 
 ## Credits
 
-Mycelium Notes was built at 42 Berlin as a team project by **Ahmed Diler**, **Maarten Hoff**, **Masha Yakovenko**, **Grace Mullin** and **Pavlos Vasilantonakis**, with contributions from others listed in the commit history. The original repository is [MySeaLeeOom/basic_structure](https://github.com/MySeaLeeOom/basic_structure); the original project write-up is preserved in [DOCS/42-origins.md](DOCS/42-origins.md).
+Tandem began as **Mycelium Notes**, the final group project of the 42 Berlin core curriculum (ft_transcendence), built by **Ahmed Diler**, **Maarten Hoff**, **Masha Yakovenko**, **Grace Mullin** and **Pavlos Vasilantonakis**, with early contributions from **Caro Silva Rode**. The original repository is [MySeaLeeOom/basic_structure](https://github.com/MySeaLeeOom/basic_structure), and the original project write-up is preserved in [DOCS/42-origins.md](DOCS/42-origins.md).
 
-This fork is maintained by Pavlos Vasilantonakis.
+This fork, renamed Tandem, is maintained by Pavlos Vasilantonakis.

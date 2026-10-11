@@ -11,9 +11,9 @@ if [ -f .env ]; then
 	echo "srcs/.env exists, leaving it untouched"
 else
 	cat > .env <<-EOF
-	DB_USER=mycelium
+	DB_USER=tandem
 	DB_PASSWORD=$(rand)
-	DB_NAME=mycelium
+	DB_NAME=tandem
 	AUTH_DB_USER=auth
 	AUTH_DB_NAME=auth
 	POSTGRES_ADDR=postgres

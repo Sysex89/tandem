@@ -240,7 +240,7 @@ async function handleExportData() {
 	const now = new Date().toISOString().replace(/[:.]/g, '-');
 	const anchor = document.createElement('a');
 	anchor.href = url;
-	anchor.download = `mycelium-notes-export-${now}.json`;
+	anchor.download = `tandem-export-${now}.json`;
 	document.body.appendChild(anchor);
 	anchor.click();
 	document.body.removeChild(anchor);

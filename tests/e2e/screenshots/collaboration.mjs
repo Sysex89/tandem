@@ -17,7 +17,7 @@ async function openNote(name) {
 	const page = await context.newPage();
 	await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
 	await page.getByPlaceholder('Username or Email').fill(name);
-	await page.getByPlaceholder('Password').first().fill('mycelium-demo');
+	await page.getByPlaceholder('Password').first().fill('tandem-demo');
 	await page.getByRole('button', { name: 'Sign In' }).click();
 	await page.waitForURL('**/notes');
 	await page.getByRole('option', { name: /Project kickoff/ }).click();

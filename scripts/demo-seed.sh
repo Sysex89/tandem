@@ -5,7 +5,7 @@
 set -euo pipefail
 
 BASE="${BASE:-https://localhost:8443}"
-PASSWORD="mycelium-demo"
+PASSWORD="tandem-demo"
 JAR_DIR="$(mktemp -d)"
 trap 'rm -rf "$JAR_DIR"' EXIT
 

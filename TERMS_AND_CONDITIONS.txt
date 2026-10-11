@@ -1,15 +1,15 @@
-Terms and Conditions — Mycelium Notes
+Terms and Conditions — Tandem
 
 Last updated: 17/04/2026
 
 
-By creating an account or using Mycelium Notes ("the Service"), you agree
+By creating an account or using Tandem ("the Service"), you agree
 to these terms. If you do not agree, do not use the Service.
 
 
 1. Definitions
 
-"Service" refers to the Mycelium Notes web application and all associated
+"Service" refers to the Tandem web application and all associated
 backend services.
 "User" refers to any individual who creates an account or accesses the
 Service.
