@@ -147,7 +147,7 @@ services:
     environment:
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/overview.json
       - GF_NEWS_NEWS_FEED_ENABLED=false
-      - GF_SERVER_ROOT_URL=https://localhost/grafana/
+      - GF_SERVER_ROOT_URL=${WEBSITE_URL}/grafana/  # must match the public origin (incl. port) or Grafana Live rejects the WebSocket
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_SECURITY_ADMIN_USER__FILE=/run/secrets/grafana_admin_user
       - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
