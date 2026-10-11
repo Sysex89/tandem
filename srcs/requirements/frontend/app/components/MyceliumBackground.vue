@@ -173,18 +173,19 @@ function draw(
 
   // Threads — only paint dots that have never been painted before
   threadCtx.globalCompositeOperation = dark ? 'lighter' : 'multiply';
-  for (let t = 0; t < threads.length; t++) {
-    const thread = threads[t];
+  for (const [t, thread] of threads.entries()) {
+    const drawn = threadDrawn[t] ?? 0;
     const elapsed = ts - thread.startAt;
     if (elapsed < 0) continue;
     const visible = Math.min(Math.floor(elapsed / thread.interval), thread.dots.length);
-    if (visible <= threadDrawn[t]) continue; // nothing new to paint
+    if (visible <= drawn) continue; // nothing new to paint
 
     const color = colors[thread.colorIdx];
     const baseAlpha = dark ? 0.14 : 0.22;
 
-    for (let k = threadDrawn[t]; k < visible; k++) {
+    for (let k = drawn; k < visible; k++) {
       const dot = thread.dots[k];
+      if (!dot) break; // k < visible <= dots.length, so this never triggers
       // alphaMod baked in using position so the variation is stable
       const alphaMod = (Math.sin(dot.x * 0.05 + dot.y * 0.03) + 1) / 2;
       const alpha = baseAlpha * (0.7 + 0.3 * alphaMod);

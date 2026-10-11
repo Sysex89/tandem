@@ -6,9 +6,10 @@
             mergeProps: ptViewMerge
         }"
     >
-        <template #icon="{ checked, indeterminate, dataP }">
-            <CheckIcon v-if="checked" :class="theme.icon" :data-p="dataP" />
-            <MinusIcon v-else-if="indeterminate" :class="theme.icon" :data-p="dataP" />
+        <!-- dataP is passed at runtime but missing from PrimeVue's slot typings -->
+        <template #icon="slotProps">
+            <CheckIcon v-if="slotProps.checked" :class="theme.icon" :data-p="(slotProps as { dataP?: string }).dataP" />
+            <MinusIcon v-else-if="slotProps.indeterminate" :class="theme.icon" :data-p="(slotProps as { dataP?: string }).dataP" />
         </template>
     </Checkbox>
 </template>
