@@ -1,9 +1,9 @@
 # ==========================================
 # STAGE 1: The Builder Stage
 # ==========================================
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+RUN npm install -g pnpm@10.28.2  # corepack is no longer bundled from Node 25
 WORKDIR /app
 
 # copy these 2 files first so there is no new npm install if the file has not changed
@@ -21,7 +21,7 @@ RUN pnpm run build
 # ==========================================
 # STAGE 2: The Production Runner Stage
 # ==========================================
-FROM node:20-slim AS runner
+FROM node:24-slim AS runner
 
 WORKDIR /app
 
