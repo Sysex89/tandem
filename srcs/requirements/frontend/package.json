@@ -21,7 +21,7 @@
     "@tiptap/vue-3": "^3.20.1",
     "@vueuse/nuxt": "^14.2.1",
     "clsx": "^2.1.1",
-    "markdown-it": "^14.1.1",
+    "markdown-it": "^15.0.2",
     "nuxt": "^4.3.1",
     "pinia": "^3.0.4",
     "primevue": "^4.5.4",
