@@ -1,1 +1,1 @@
-FROM prometheuscommunity/postgres-exporter:v0.19.1
+FROM prometheuscommunity/postgres-exporter:v0.20.1
