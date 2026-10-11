@@ -1,5 +1,5 @@
 # official postgres image, alpine = smaller size
-FROM postgres:16-alpine
+FROM postgres:18-alpine
 
 # NOTE: EXPOSE 5432 is already written in the postgres container
 
