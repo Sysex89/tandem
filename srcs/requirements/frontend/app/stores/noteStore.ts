@@ -56,7 +56,7 @@ export const useNoteStore = defineStore("notes", () => {
 
 			// On the server, we MUST use the full internal Docker URL.
 			const isServer = typeof window === "undefined";
-			const url = isServer ? "https://nginx:443/api/notes" : "/api/notes";
+			const url = isServer ? "http://nginx:8081/api/notes" : "/api/notes";
 
 			const userCookie = authStore.sessionCookie;
 			const base = new Headers();

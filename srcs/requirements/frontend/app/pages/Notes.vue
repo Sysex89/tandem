@@ -340,7 +340,7 @@ await useAsyncData('notes', async () => {
 
 		<div v-if="mounted && activeNote"
 			class="flex flex-1 w-full h-full gap-4 flex-col md:flex-row overflow-y-auto md:overflow-y-visible">
-			<NoteEditor ref="noteEditorRef" :note-id="activeNote.id" class="flex-1" />
+			<NoteEditor ref="noteEditorRef" :note-id="activeNote.id" :fallback-title="activeNote.title" class="flex-1" />
 		</div>
 		<div v-else-if="!activeNote" class="empty-state">{{ t('notes.empty') }}</div>
 

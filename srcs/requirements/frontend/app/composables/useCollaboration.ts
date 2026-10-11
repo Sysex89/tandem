@@ -10,7 +10,12 @@ interface UseCollaborationReturn {
   updateTitle: (value: string) => void;
 }
 
-export function useCollaboration(noteId: () => string): UseCollaborationReturn {
+// onTitleChange fires only when the shared title is edited (locally or by a
+// collaborator), never when switching notes, so callers can persist it safely.
+export function useCollaboration(
+  noteId: () => string,
+  onTitleChange?: (id: string, title: string) => void,
+): UseCollaborationReturn {
   const currentYdoc = shallowRef<Y.Doc | null>(null);
   const currentProvider = shallowRef<WebsocketProvider | null>(null);
   const titleText = ref("");
@@ -49,7 +54,10 @@ export function useCollaboration(noteId: () => string): UseCollaborationReturn {
       // Activate new
       titleText.value = yTitle.toString();
       connectedUsers.value = newProvider.awareness.getStates().size;
-      yTitle.observe(() => { titleText.value = yTitle.toString(); });
+      yTitle.observe(() => {
+        titleText.value = yTitle.toString();
+        onTitleChange?.(id, titleText.value);
+      });
       newProvider.awareness.on("change", () => { connectedUsers.value = newProvider.awareness.getStates().size; });
 
       currentProvider.value = newProvider;

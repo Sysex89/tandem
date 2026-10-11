@@ -30,7 +30,7 @@ async function handleLogin() {
 		authStore.error = t("login.validation.identifierRequired");
 		return;
 	}
-	if (password.value.length < 4) {
+	if (password.value.length < 8) {
 		authStore.error = t("login.validation.passwordMin");
 		return;
 	}
@@ -46,7 +46,7 @@ async function handleRegister() {
 		authStore.error = t("login.consent.required");
 		return;
 	}
-	if (!regLogin.value.trim()) {
+	if (regLogin.value.trim().length < 3) {
 		authStore.error = t("login.validation.usernameRequired");
 		return;
 	}
@@ -54,7 +54,7 @@ async function handleRegister() {
 		authStore.error = t("login.validation.emailInvalid");
 		return;
 	}
-	if (regPassword.value.length < 4) {
+	if (regPassword.value.length < 8) {
 		authStore.error = t("login.validation.passwordMin");
 		return;
 	}

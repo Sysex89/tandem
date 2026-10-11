@@ -43,7 +43,7 @@ export const useAuthStore = defineStore("auth", () => {
 			// Thick Check: Fetch Profile (This internally verifies the session)
 			// If server, we MUST use the internal docker network URL
 			// If client, we use the relative URL (proxied by Nginx)
-			const url = isServer ? "https://nginx:443/api/auth/me" : "/api/auth/me";
+			const url = isServer ? "http://nginx:8081/api/auth/me" : "/api/auth/me";
 
 			const res = await fetch(url, { headers });
 			if (res.ok) {

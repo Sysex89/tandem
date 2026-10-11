@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, ref, computed, watch, watchEffect } from "vue";
+import { shallowRef, ref, computed, watchEffect } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -13,17 +13,15 @@ import { useUiI18n } from "~/composables/useUiI18n";
 
 const props = defineProps<{
   noteId: string;
+  // Title stored in the notes service; shown until the shared title has been set.
+  fallbackTitle?: string;
 }>();
 
 const noteStore = useNoteStore();
 const authStore = useAuthStore();
 const { t } = useUiI18n();
 const { ydoc, provider, titleText, connectedUsers, updateTitle } =
-  useCollaboration(() => props.noteId);
-
-watch(titleText, (newTitle) => {
-  noteStore.updateNoteTitle(props.noteId, newTitle);
-});
+  useCollaboration(() => props.noteId, (id, title) => noteStore.updateNoteTitle(id, title));
 
 const editor = shallowRef<Editor>();
 
@@ -85,7 +83,7 @@ function focusEditorEnd(event: MouseEvent) {
         :value="titleText"
         @input="updateTitle(($event.target as HTMLInputElement).value)"
         @keydown.enter.prevent="editor?.commands.focus('start')"
-        :placeholder="t('notes.untitled')"
+        :placeholder="fallbackTitle || t('notes.untitled')"
         class="editor-title"
       />
       <EditorContent :editor="editor" class="tiptap-editor" />

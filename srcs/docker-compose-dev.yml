@@ -24,7 +24,6 @@ services:
       - HOME=/tmp      # Fix for Corepack/pnpm permission issues
       - HOST=0.0.0.0  # For nuxt, so it knows
       - PORT=${AUTH_PORT}   # For nuxt, so it knows
-      - NODE_TLS_REJECT_UNAUTHORIZED=0  # Allow SSR with self-signed certificates
     depends_on:
       - auth
   
