@@ -7,7 +7,7 @@ services:
       args:
         - UID=${UID:-1000}
         - GID=${GID:-1000}
-    image: frontend
+    image: mycelium-frontend
     container_name: frontend
     restart: always
     volumes:
@@ -31,7 +31,7 @@ services:
     build:
       context: ./requirements/notes
       dockerfile: Dockerfile
-    image: notes
+    image: mycelium-notes
     container_name: notes
     restart: always
     environment:
@@ -49,7 +49,7 @@ services:
       build:
         context: ./requirements/editor
         dockerfile: Dockerfile
-      image: editor
+      image: mycelium-editor
       container_name: editor
       restart: always
       environment:
@@ -70,7 +70,7 @@ services:
       args:
         - UID=${UID:-1000}
         - GID=${GID:-1000}
-    image: auth
+    image: mycelium-auth
     container_name: auth
     volumes:
       - ./requirements/auth:/app
@@ -103,7 +103,7 @@ services:
     build:
       context: ./requirements/nginx
       dockerfile: Dockerfile
-    image: nginx
+    image: mycelium-nginx
     container_name: nginx
     restart: always
     networks:
@@ -119,7 +119,7 @@ services:
 
   postgres:
     build: ./requirements/postgres
-    image: postgres
+    image: mycelium-postgres
     container_name: postgres
     restart: always
     environment:
@@ -147,7 +147,7 @@ services:
     build: 
       context: ./requirements/grafana
       dockerfile: Dockerfile
-    image: grafana
+    image: mycelium-grafana
     container_name: grafana
     restart: always
     depends_on:
@@ -170,7 +170,7 @@ services:
     build:
       context: ./requirements/prometheus
       dockerfile: Dockerfile
-    image: prometheus
+    image: mycelium-prometheus
     container_name: prometheus
     restart: always
     volumes:

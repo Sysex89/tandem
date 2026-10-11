@@ -110,7 +110,7 @@ jobs:
       - name: Build the slow images with a per-service layer cache
         run: |
           for s in auth frontend notes editor; do
-            docker buildx build --load -t "$s" \
+            docker buildx build --load -t "mycelium-$s" \
               --cache-from "type=gha,scope=$s" \
               --cache-to "type=gha,scope=$s,mode=max" \
               "srcs/requirements/$s"
@@ -118,7 +118,10 @@ jobs:
       - name: Start the demo stack
         run: |
           ./scripts/demo-setup.sh
-          docker compose -f srcs/docker-compose.yml up -d
+          # The small images are cheap to build; --pull never guarantees nothing
+          # is ever substituted from Docker Hub.
+          docker compose -f srcs/docker-compose.yml build nginx postgres grafana prometheus nginx-exporter postgres-exporter
+          docker compose -f srcs/docker-compose.yml up -d --pull never
           ./scripts/demo-seed.sh
       - name: postgres-exporter reads Postgres as the monitoring role
         run: |
