@@ -1,78 +1,56 @@
 # NGINX Service
 
-## Config
+nginx is the single entry point and the only place authentication is enforced for the backend services. The service image is built from `Dockerfile` (with a self-signed certificate for `localhost`); the hosted demo mounts `deploy/nginx.conf` over the config and runs behind Caddy instead.
 
-``` nginx
-server {
-    listen 80;
+## Files
 
-    resolver 127.0.0.11 valid=10s;
-	# without this nginx will look for the ip address of a container only once, at startup 
-	# 127.0.0.11 is Docker network address with DNS lookup
+| File | Contents |
+| --- | --- |
+| `conf/nginx.conf` | The servers below; copied to `/etc/nginx/conf.d/` |
+| `conf/api-locations.conf` | `/api/notes` (behind `auth_request`) and `/api/auth`; included by the HTTPS and the internal server |
+| `conf/app-locations.conf` | The 502 page, `/ws/` (behind `auth_request`, long timeouts for WebSockets) and `/` (frontend); included by the HTTPS server and by `deploy/nginx.conf` |
+| `conf/custom_502.html` | Served as `/502.html` while a backend is down or restarting |
 
-    # API routes (secure)
-    location /api/notes {
-        # 1. THE BOUNCER: Intercept request and ask Auth Service if user is okay
-        auth_request /api/auth/verify;
-        error_page 401 = @login;
+## Servers
 
-        # 2. THE EXTRACTION: Catch identity from Auth Service's response headers
-        # 'upstream_http_' is how Nginx reads headers from internal sub-requests
-        auth_request_set $auth_user_id $upstream_http_x_user_id;
-        auth_request_set $auth_user_role $upstream_http_x_user_role;
+| Listen | Published | Purpose |
+| --- | --- | --- |
+| 443 (TLS) | host port 8443 | The app: API, WebSocket, frontend, and Grafana at `/grafana/` |
+| 80 | no | Redirect to HTTPS |
+| 8081 | no | Plain HTTP for server-side rendering: the frontend calls `http://nginx:8081/api/...` so `auth_request` still applies, without trusting the self-signed certificate |
+| 8088 | no | `stub_status` for nginx-exporter |
 
-        # 3. THE INJECTOR: Overwrite headers sent to the Notes Service
-        # Even if a user tries to spoof these in their browser, Nginx 
-        # overwrites them here with our internal, VERIFIED data.
-        proxy_set_header X-User-Id $auth_user_id;
-        proxy_set_header X-User-Role $auth_user_role;
+## The auth gate
 
-        proxy_pass http://notes:3003;
-    }
+Protected locations ask the auth service first and pass the verified identity on:
 
-	# Preparing for when we have auth, to know what we need to get correct notes
-	# X-User-ID: 42
-    # X-User-Role: admin
-    # X-User-Status: active
+```nginx
+location /api/notes {
+	# 1. THE BOUNCER: a sub-request to auth's /verify; anything but 2xx stops here
+	auth_request /api/auth/verify;
 
-    location /api/auth {
-		set $auth_upstream auth:3000; 
-		#Creates a variable for the service location, 
-		#Doesn't crash nginx is service not yet ready
+	# 2. THE EXTRACTION: read the identity from the sub-request's response headers
+	# ('upstream_http_' is how nginx reads headers from internal sub-requests)
+	auth_request_set $auth_user_id $upstream_http_x_user_id;
 
-		rewrite ^/api/auth/(.*) /$1 break;
-		#removes /api/auth/ and leaves what is after such as /login/github
-        proxy_pass http://$auth_upstream;
-		#use the service url in variable
+	# 3. THE INJECTOR: overwrite the header sent to the service. Even if a client
+	# sends its own X-User-Id, nginx replaces it with the verified value.
+	proxy_set_header X-User-Id $auth_user_id;
 
-		proxy_set_header Host $host; 
-		#By default, Nginx sets the Host header of the outgoing request to the name of the proxy_pass directive.
-		#This may fail and may require $http_host. This keeps the URL of the site, instead of overwriting it. $http_host will keep also the port.
-
-		proxy_set_header X-Real-IP $remote_addr; 
-		#Your Auth service sees the "Last Hop" IP (Nginx). If someone tries to brute-force a password, you want to ban their IP, not Nginx's IP.
-
-		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
-		#Similar job as remote_addr but entire chain of custody
-	}
-
-	# Frontend server
-    location / {
-        set $frontend_upstream frontend:3000;
-        proxy_pass http://$frontend_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+	proxy_pass http://$notes_upstream;
 }
 ```
+
+`/ws/` uses the same pattern for the editor service. The notes and editor services trust `X-User-Id` blindly, so any new protected route must be added here with `auth_request`.
+
+`/api/auth/*` is proxied to `auth:3000` with the prefix stripped (`rewrite ^/api/auth/(.*) /$1 break;`), keeping `Host`, `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto`.
+
+Upstreams are written as variables (`set $notes_upstream notes:3003;`) together with `resolver 127.0.0.11`, Docker's DNS. The next section explains why.
 
 ## Resolver purpose
 
 1. The Startup Crash (Static Mode)
-If you use proxy_pass http://auth:3000; (no variables):
+If you use `proxy_pass http://auth:3000;` (no variables):
 
 The Fact: Nginx tries to "verify its world" before it opens its doors.
 The Event: If the auth container is not yet "Born" (started), Nginx says: "My world is broken! I cannot find 'auth' in the phonebook!" and it exits with an error.

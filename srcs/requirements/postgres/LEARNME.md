@@ -41,6 +41,9 @@ This script is written by us to create the **Auth Database** securely.
     2.  Create the user `$AUTH_DB_USER`.
     3.  Grant all privileges on the database to that user.
 
+#### `03-monitoring.sh` (The Read-only Monitoring Role)
+Creates the `monitoring` login role for `postgres-exporter`, with the password from `/run/secrets/monitoring_db_password`. It only gets `pg_monitor` (the statistics views) and `CONNECT`, never access to table data, so the metrics pipeline cannot read notes or users. Like every init script, it only runs on an empty volume; for an existing one, see `README_DEV.md`.
+
 #### The notes tables (no longer here)
 The main database's tables (`notes`, `share`, `note_states`) used to be created by `02-init.sql` in this folder, which only ran on an empty volume, so schema changes required wiping all data. They are now sqlx migrations owned by the notes service (`notes/migrations/`), applied every time it starts. See `DOCS/reference/database-schema.md`.
 
@@ -58,6 +61,5 @@ If you restart the container, your data is safe, and the scripts will **NOT** ru
 
 **💥 How to "Reset" the Database:**
 If you change a script in `init/` and want to see the changes (main-database schema changes don't need this: add a migration in `notes/migrations/` instead):
-1.  Stop the containers: `docker compose down`
-2.  **Delete the volume**: `docker volume rm tandem_pg18` (This wipes all data!)
-3.  Restart: `docker compose up --build`
+1.  `make fclean` stops the stack and **deletes the volumes** (this wipes all users and notes!)
+2.  `make demo` (or `make up`) starts again on an empty volume, so the scripts run.
