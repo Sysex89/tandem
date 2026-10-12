@@ -9,6 +9,8 @@
 
 Write together, in real time. Tandem is a self-hosted note-taking app with real-time collaborative editing: several people in the same note, live cursors, no conflicts.
 
+**[Live demo](https://tandem.civicmultiphonics.eu)**: log in as `alice` and as `bob` (password `tandem-demo`) in two browsers and open "Project kickoff". Data resets nightly at 04:00 UTC.
+
 ![Two users editing the same note, each seeing the other's live cursor](DOCS/img/collaboration.png)
 
 ## Features
@@ -37,7 +39,7 @@ flowchart LR
     P[Prometheus] --> G
 ```
 
-Design decisions worth calling out:
+Design decisions:
 
 - **Authentication happens once, at the edge.** nginx gates every protected route with an `auth_request` sub-request to the auth service, then injects the verified `X-User-Id` header (overwriting anything the client sent). Downstream services contain no session logic.
 - **Document content is a CRDT, metadata is relational.** The `notes` service owns titles, ownership and sharing as ordinary rows. The `editor` service keeps one in-memory Yjs document per note, relays updates over WebSockets, and persists the binary state. On shutdown it closes every socket with code 1012 (service restart), so clients reconnect to the next instance, and saves every open document first. A restart takes under a second instead of Docker's 10 s timeout.
