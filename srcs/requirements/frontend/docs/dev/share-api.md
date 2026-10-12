@@ -1,7 +1,5 @@
 # Share / Collaboration API — Frontend Integration Guide
 
-> Supersedes `invitation-api.md`. The backend is implemented on the `share` branch (now merged).
-
 ## Overview
 
 Sharing lets a note owner grant other users access to a note. The flow has two services:
@@ -18,7 +16,7 @@ All endpoints use cookie-based session auth. Nginx verifies the session via `aut
 ### Resolve user for sharing
 
 ```
-GET /api/user/resolve?identifier=<loginName or email>
+GET /api/auth/resolve?identifier=<loginName or email>
 ```
 
 Exact match only — no prefix search or autocomplete. Minimum 3 characters.
@@ -42,10 +40,10 @@ Exact match only — no prefix search or autocomplete. Minimum 3 characters.
 ### List all users
 
 ```
-GET /api/user/users
+GET /api/auth/users
 ```
 
-Returns all registered users (id + loginName). Useful for populating a user picker.
+Returns `{ users: [{ id, loginName, imageURL }] }` for all registered users. The invite dialog uses it as its user picker.
 
 ---
 
@@ -156,44 +154,16 @@ Fetch a note by its `owner_url` slug (e.g., `/api/notes/u/meeting-notes`). Owner
 
 ---
 
-## Frontend Integration Flow
+## How the frontend uses it
 
-### Sharing a note with a specific user
+Sharing lives in `app/pages/Notes.vue`:
 
-1. User types a loginName or email into the share input (min 3 chars).
-2. Debounce ~250ms, then call `GET /api/user/resolve?identifier=<input>`.
-3. On success: show user preview (avatar, name). Enable "Share" button.
-4. On 404: show "No user found." Keep "Share" disabled.
-5. On confirm: `POST /api/notes/collab/` with `{ note_id, guest_id: resolved_uuid, role }`.
-6. On 409: show "This user already has access."
+- **Invite dialog:** the owner picks users from `GET /api/auth/users` and a role (View or Edit), then the page sends one `POST /api/notes/collab/` per user. A 409 means that user already has access and is reported, not treated as an error.
+- **Collaborators list:** `GET /api/notes/collab/{note_id}`, with a revoke button per entry (`DELETE /api/notes/collab/revoke/{share_id}`).
+- **Sidebar:** own notes from `GET /api/notes`, plus a "Shared with me" section from `GET /api/notes/collab/received`.
+- **View shares** open the editor read-only. The editor service enforces this by dropping the user's document updates; the read-only editor is only UX.
 
-### Creating a public link
-
-Same as above but with `guest_id: null`. On 409: "A public link already exists."
-
-### Listing shared notes (sidebar)
-
-- Own notes: `GET /api/notes` (existing)
-- Shared with me: `GET /api/notes/collab/received`
-
-Render shared notes in a separate "Shared with me" section.
-
-### Managing shares (owner view)
-
-- All my shares: `GET /api/notes/collab/created`
-- Per-note collaborators: `GET /api/notes/collab/{note_id}`
-- Revoke: `DELETE /api/notes/collab/revoke/{share_id}`
-
----
-
-## Frontend Files to Modify
-
-| File | Change needed |
-|------|--------------|
-| `app/stores/noteStore.ts` | Add shared notes fetch, share CRUD actions |
-| `app/pages/Notes.vue` | Add "Shared with me" sidebar section |
-| `app/components/notes/ShareDialog.vue` | Wire up resolve + create share (exists on share branch) |
-| `app/composables/useCollaboration.ts` | May need updates for shared note WebSocket access |
+`GET /api/auth/resolve` and public links (`guest_id: null`) are supported by the backend but not used by the UI yet.
 
 ## Key Rules
 

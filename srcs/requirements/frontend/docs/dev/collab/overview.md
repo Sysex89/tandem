@@ -3,62 +3,58 @@
 Every collaborative editing session follows the same path: **connect → load → sync → edit → persist → disconnect**.
 
 The backend is split into two services:
-- **notes** (Rust/Axum, port 3003) — REST API for note lifecycle (CRUD)
-- **editor** (Rust/Axum, port 3004) — WebSocket service for real-time CRDT sync via y-sync v1 protocol
+- **notes** (Rust/Axum, port 3003): REST API for note metadata, sharing and slugs
+- **editor** (Rust/Axum, port 3004): WebSocket service for real-time CRDT sync via the y-sync v1 protocol
 
-Both share a single PostgreSQL database. yrs is the Rust port of Yjs.
+Both use the same PostgreSQL database. yrs is the Rust port of Yjs. For the frontend side, see [tiptap-yjs-integration.md](./tiptap-yjs-integration.md); for cursors, [live-cursors.md](./live-cursors.md).
 
 ### Connect
 
-A client opens a WebSocket to the editor service at `/ws/{id}` (proxied by nginx). The handler looks up the note's document room in the in-memory rooms map. If a room exists (another user is editing), the client joins it. If not, a new room is created by loading the document from PostgreSQL.
+A client opens a WebSocket to `/ws/{id}`. nginx first runs `auth_request` against the auth service and injects the verified `X-User-Id`. Before upgrading, the editor service resolves the user's access with `db::access_level`: owner or Edit share → read-write, View share → read-only, nothing → 403.
+
+It then looks up the note's room in the in-memory rooms map (`DashMap`). If a room exists, the client joins it; if not, a new room is created by loading the document from PostgreSQL.
 
 ### Load
 
-Loading only happens when the first client connects to a note. The `doc_state` column (`BYTEA`) from the `notes` table is decoded into a yrs `Doc`, which becomes the room's in-memory truth.
+Loading only happens when the first client connects to a note. The `note_states.state_vector` column (`BYTEA`; despite the name it holds the full document encoded as a Yjs update) is applied to a new yrs `Doc`, which becomes the room's in-memory truth.
 
 ### Sync
 
-The editor service uses the **y-sync v1 standard protocol** (same as y-websocket). On connect:
+The editor service speaks the **y-sync v1 protocol** (the same as y-websocket). On connect:
 1. Server and client exchange state vectors and missing updates via the standard SyncStep1/SyncStep2 handshake
-2. If other clients are connected, their awareness entries are sent
+2. The server sends the current awareness states (other users' cursors)
 
 The frontend uses `y-websocket`'s `WebsocketProvider`, which speaks the same protocol natively.
 
 ### Edit
 
-Each edit produces a Yjs update (binary diff). Updates flow through the y-sync protocol — the server applies them to the in-memory Doc, persists to PostgreSQL, and broadcasts to other clients.
+Each edit produces a Yjs update (binary diff). The server applies it to the in-memory Doc, marks the room dirty and broadcasts it to the other clients. Updates from read-only clients are dropped; they still sync and send awareness. Access is re-checked every 15 s per connection, so a revoked share or a role change applies to open sockets.
 
-Awareness updates (cursor positions, selections) are ephemeral — they skip persistence and go directly from decode → store → broadcast.
+Awareness updates (cursor positions, selections) are ephemeral: they are relayed as received and never touch the database.
+
+Each client has a bounded send queue. A client that falls too far behind is disconnected; y-websocket reconnects and resyncs it.
 
 ### Persist
 
-Every incoming CRDT update is persisted synchronously:
-1. Reads current `doc_state` from PostgreSQL
-2. Merges the incoming update into a new full snapshot
-3. In a single transaction: updates `notes.doc_state` and appends to `note_updates` history
+The full document is written back to `note_states`:
+- every 5 s while the room is dirty (a background task per room),
+- when the last client leaves,
+- on shutdown: SIGTERM closes every socket with code 1012 so clients reconnect, and rooms are saved as they empty.
+
+After each save, the editor pushes the title (the Yjs `title` text) to the notes service's `PUT /api/notes/{id}` if it changed. The editor is the only writer of `notes.title`; the frontend never persists titles itself.
 
 ### Disconnect
 
-When a client disconnects:
-1. Client removed from room
-2. Awareness removal broadcast to remaining clients
-3. If last client, room removed from memory (document lives only in PostgreSQL)
-
-No "final persist" needed — every update is already persisted immediately.
+When a client disconnects it is removed from the room. If it was the last one, the room is saved and removed from memory.
 
 ### REST API (notes service)
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/notes` | List all notes (id, title, timestamps) |
+| `GET /api/notes` | List the user's notes (id, title, slug, timestamps) |
 | `GET /api/notes/{id}` | Get a single note |
-| `POST /api/notes` | Create a note with initial title |
-| `PUT /api/notes/{id}` | Update note title (debounced from frontend) |
+| `POST /api/notes` | Create a note with an initial title (also creates its `note_states` row) |
+| `PUT /api/notes/{id}` | Update the title and slug (called by the editor service) |
 | `DELETE /api/notes/{id}` | Delete a note |
 
-Document content is modified through WebSocket; title is persisted via debounced PUT.
-
-### Current gaps
-
-- **Authentication on WebSocket**: No auth check on WebSocket connections
-- **Anonymous users**: All carets show "Anonymous" with the same color
+Document content changes only through the WebSocket. The full list, including sharing, is in the [notes service README](../../../../notes/README.md).

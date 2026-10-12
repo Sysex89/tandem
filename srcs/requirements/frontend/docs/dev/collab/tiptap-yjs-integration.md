@@ -6,18 +6,7 @@ For the backend workflow, see [overview.md](./overview.md). For the live cursor 
 
 ## Package Dependencies
 
-```jsonc
-{
-  "dependencies": {
-    "@tiptap/vue-3": "^3.20.0",
-    "@tiptap/starter-kit": "^3.20.0",
-    "@tiptap/extension-collaboration": "^3.20.0",
-    "@tiptap/extension-collaboration-caret": "^3.20.0",
-    "yjs": "^13.6.29",
-    "y-websocket": "^3.0.0"
-  }
-}
-```
+`@tiptap/vue-3`, `@tiptap/starter-kit`, `@tiptap/extension-collaboration`, `@tiptap/extension-collaboration-caret`, `yjs` and `y-websocket` (versions in `package.json`).
 
 `y-websocket` provides the `WebsocketProvider` that speaks the y-sync v1 protocol, matching the backend's editor service.
 
@@ -28,7 +17,7 @@ For the backend workflow, see [overview.md](./overview.md). For the live cursor 
 ```
 app/composables/useCollaboration.ts    app/components/notes/NoteEditor.vue
 (Y.Doc, WebsocketProvider,             (Tiptap Editor with
- title sync, lifecycle)                 Collaboration extensions)
+ shared title, lifecycle)               Collaboration extensions)
 ```
 
 ### useCollaboration composable
@@ -42,9 +31,9 @@ app/composables/useCollaboration.ts    app/components/notes/NoteEditor.vue
 ### NoteEditor component
 
 - Uses `watchEffect` to create/destroy Tiptap Editor when ydoc/provider refs change
-- Always editable — no view/edit toggle
-- Title: `InputText` bound to reactive `titleText` from useCollaboration
-- Watches `titleText` and calls `noteStore.updateNoteTitle()` to sync sidebar + debounced PUT to Postgres
+- `readOnly` prop for View shares: the editor and title input are not editable. This is only UX; the editor service is what drops a read-only user's updates
+- Title: an `<input>` bound to `titleText` from useCollaboration, written with `updateTitle()`
+- `onTitleChange` calls `noteStore.updateNoteTitle()`, which only updates the sidebar. The editor service persists the title to the notes service after each save
 
 ---
 
@@ -79,14 +68,14 @@ User types → updateTitle() → yTitle.delete() + yTitle.insert()
 
 ## SSR Safety
 
-`NoteEditor` creates WebSocket in setup, which crashes Node.js. Guard in `NotesView.vue`:
+`NoteEditor` creates a WebSocket in setup, which crashes Node.js. Guard in `pages/Notes.vue`:
 
 ```typescript
 const mounted = ref(false);
 onMounted(() => { mounted.value = true; });
 ```
 ```vue
-<NoteEditor v-if="mounted && noteStore.selectedNote" ... />
+<NoteEditor v-if="mounted && activeNote" ... />
 ```
 
 The guard must be one level up — even with `v-if` inside NoteEditor, the `<script setup>` would already have executed.
@@ -95,5 +84,4 @@ The guard must be one level up — even with `v-if` inside NoteEditor, the `<scr
 
 ## Known Limitations
 
-1. **Anonymous users** — All carets show "Anonymous" with same color
-2. **No offline persistence** — Local edits survive reconnect (in-memory) but lost if tab closes while disconnected
+1. **No offline persistence** — Local edits survive reconnect (in-memory) but lost if tab closes while disconnected
