@@ -13,7 +13,7 @@ Browser ──HTTPS/WSS──▶ Caddy ──HTTP──▶ nginx ──▶ front
 
 ## One-time setup
 
-1. **DNS:** an `A` record for the demo hostname pointing at the server.
+1. **DNS:** an `A` record for the demo hostname pointing at the server. Add it before the first deploy: Caddy starts asking Let's Encrypt for a certificate as soon as the site block exists, and after a few NXDOMAIN failures it backs off for up to 3 hours. If that happened, `docker exec caddy caddy reload --force --config /etc/caddy/Caddyfile` makes it try again immediately.
 2. **Swap**, as a safety net on a 1 GB machine:
    ```bash
    fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
