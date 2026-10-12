@@ -1,6 +1,6 @@
 # Add a new application metric
 
-Goal: expose a new time series from **auth** (Node) or **notes** (Rust), have Prometheus scrape it, and confirm it in Grafana Explore. For background on pull scrapes and labels, see [Monitoring architecture (explanation)](../explanation/monitoring-architecture-prometheus-grafana.md).
+Goal: expose a new time series from **auth** (Node), **notes** or **editor** (Rust), have Prometheus scrape it, and confirm it in Grafana Explore. For background on pull scrapes and labels, see [Monitoring architecture (explanation)](../explanation/monitoring-architecture-prometheus-grafana.md).
 
 ## Before you change code
 
@@ -28,9 +28,15 @@ The `/metrics` route is already registered early in `srcs/requirements/auth/src/
 
 **Expose** metrics through the existing `gather_prometheus_text()` path and `GET /metrics` in `srcs/requirements/notes/src/main.rs` unless you intentionally use a separate registry (not the current pattern).
 
-## New service (not auth or notes)
+## Editor service (Axum, prometheus crate)
 
-Implement **`GET /metrics`** in that service (Prometheus text exposition). Add a **`scrape_configs`** entry in `srcs/requirements/prometheus/prometheus.yml` with a distinct `job_name` and the container **hostname** and **port** on the `transcendence` network. Rebuild or restart Prometheus so it reloads config (depending on how you mount `prometheus.yml`).
+All editor metrics live in one `Metrics` struct in `srcs/requirements/editor/src/metrics.rs`, built once behind `get()`. Add a field, register it in the constructor with an `editor_` prefix, and use it with `metrics::get().<field>`. If a labelled metric should be listed before its first event, touch its label values in `init()` (called from `main.rs`), as is done for `editor_clients_connected`. `GET /metrics` is already served from `main.rs`.
+
+If the metric belongs on the editor dashboard, add a panel to `grafana/provisioning/dashboards/editor-metrics.json`.
+
+## New service (not auth, notes or editor)
+
+Implement **`GET /metrics`** in that service (Prometheus text exposition). Add a **`scrape_configs`** entry in `srcs/requirements/prometheus/prometheus.yml` with a distinct `job_name` and the container **hostname** and **port** on the `transcendence` network. `prometheus.yml` is bind-mounted, so `make rebuild service=prometheus` (or a restart) picks it up.
 
 ## Wire Prometheus and verify
 
@@ -38,7 +44,7 @@ After the service listens and exposes the metric, confirm the target is **UP** (
 
 ## Optional: dashboard panel
 
-Add a panel to a provisioned JSON under `srcs/requirements/grafana/provisioning/dashboards/` or build a panel in the UI (knowing file provisioning may overwrite UI-only changes on restart, depending on provider settings). Use the same `job="auth"` or `job="notes"` selector as the other app panels.
+Add a panel to a provisioned JSON under `srcs/requirements/grafana/provisioning/dashboards/`. A panel built in the UI can be exported as JSON and pasted in. The provisioning folder is copied into the Grafana image, so run `make rebuild service=grafana` afterwards. Use the same `job="auth"`, `job="notes"` or `job="editor"` selector as the other app panels. Dashboards are provisioned with `allowUiUpdates: false`, so edit the JSON in the repository rather than in the UI.
 
 ## Related docs
 

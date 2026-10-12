@@ -6,17 +6,15 @@ You will open Grafana, confirm it can talk to Prometheus, run one query, open da
 
 ## Prerequisites
 
-From the `srcs/` directory, bring the stack up (for example `docker compose up -d`) and wait until **grafana**, **prometheus**, **auth**, and **notes** are running. Host port mappings are defined in `docker-compose.yml`; if yours differ, use [Monitoring files and ports (reference)](../reference/monitoring-files-and-ports.md).
+From the repository root, run `make demo` (or `make up`) and wait until **grafana**, **prometheus**, **auth**, **notes** and **editor** are running (`docker compose -f srcs/docker-compose.yml ps`). Only nginx publishes a port; see [Monitoring files and ports (reference)](../reference/monitoring-files-and-ports.md).
 
 ## Step 1 — Open Grafana
 
-In a browser, go to **http://localhost:3000** (default mapping in this repo’s `docker-compose.yml`).
+In a browser, go to **https://localhost:8443/grafana/** (nginx proxies Grafana under `/grafana/`; accept the self-signed certificate).
 
-Sign in. A fresh Grafana often uses default administrator credentials until you change them; treat that as acceptable **only on a local machine**. For anything shared or on a network, change the password immediately.
+Sign in with the admin credentials from `srcs/secrets/grafana_admin_user` and `srcs/secrets/grafana_admin_password` (`make demo` generates them if missing).
 
-**Check:** You see the Grafana home interface, not a connection error.
-
-If port 3000 is already used by another program on your host, adjust the compose port mapping or stop the conflicting service, then try again.
+**Check:** You see the Grafana home dashboard (**CPKNMS Overview**), not a connection error.
 
 ## Step 2 — Confirm the Prometheus datasource
 
@@ -42,21 +40,21 @@ up
 
 Run the query.
 
-**Check:** You see multiple time series. Each has a **`job`** label. You should recognize values such as `auth`, `notes`, `nginx_exporter`, and `postgres_exporter`. The numeric value `1` usually means Prometheus reached that target on the last scrape.
+**Check:** You see multiple time series. Each has a **`job`** label. You should recognize values such as `auth`, `notes`, `editor`, `nginx_exporter`, and `postgres_exporter`. The numeric value `1` usually means Prometheus reached that target on the last scrape.
 
-`up{job="auth"}` is `0` often means the auth container is not listening (for example a crash on boot). See [Restore auth after new npm dependencies (how-to)](../howto/restore-auth-after-new-npm-dependencies.md).
+`up{job="auth"}` is `0` often means the auth container is not listening (for example a crash on boot); check `make logs service=auth`. In `make dev`, a stale `node_modules` volume is a common cause: see [Restore auth after new npm dependencies (how-to)](../howto/restore-auth-after-new-npm-dependencies.md).
 
 ## Step 4 — Open the overview dashboard
 
-Open **Dashboards** and find **CPKNMS Overview** (provisioned from the repo; UID `cpknms-overview`).
+Open **Dashboards** and find **CPKNMS Overview** (provisioned from the repo; UID `cpknms-overview`). It is also the home dashboard.
 
 **Check:** Panels load. Some may show little data until the stack has been up for a short time; that is normal.
 
 ## Step 5 — Use the app so metrics can move (recommended)
 
-Application **counters** often stay invisible in PromQL until something happens. In another browser tab, open the app **through nginx** at **http://localhost:8080** (default mapping: host 8080 → container 80).
+Application **counters** often stay invisible in PromQL until something happens. In another browser tab, open the app at **https://localhost:8443**.
 
-Browse a page that triggers session checks (for example a logged-in area that calls `/api/auth/me`) or create and delete a note if you have a test account.
+Log in (with `make demo`: `alice` / `tandem-demo`), open a note and type a few words, or create and delete a note.
 
 Return to Grafana **Explore** and try:
 
@@ -70,11 +68,17 @@ and:
 notes_mutations_total
 ```
 
+and:
+
+```promql
+editor_messages_total
+```
+
 **Check:** You see at least one series, or you can see counts increase after repeating an action. If you see nothing yet, repeat the app action once; some metrics appear only after the first event.
 
-## Step 6 — Open the auth and notes dashboards
+## Step 6 — Open the auth, notes and editor dashboards
 
-Open **Dashboards** and locate **Auth metrics** (`auth-metrics`) and **Notes metrics** (`notes-metrics`).
+Open **Dashboards** and locate **Auth metrics** (`auth-metrics`), **Notes metrics** (`notes-metrics`) and **Editor (real-time collaboration)** (`editor-metrics`). The editor dashboard is the liveliest: log in as `bob` in a second browser, open the shared note, and watch connected clients and messages move.
 
 **Check:** Panels render. Empty graphs usually mean no traffic in the selected time range; narrow or shift the time picker, or repeat Step 5.
 
