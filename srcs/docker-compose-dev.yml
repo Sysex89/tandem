@@ -17,13 +17,12 @@ services:
       - frontend_output_hidden:/app/.output
 
     networks:
-      - transcendence   # Connect to 'notes' and 'postgres' [cite: 21]
+      - transcendence
     environment:
-      - NOTES_ADDR=${NOTES_ADDR}  # Internal SSR communication 
       - NODE_ENV=development
       - HOME=/tmp      # Fix for Corepack/pnpm permission issues
       - HOST=0.0.0.0  # For nuxt, so it knows
-      - PORT=${AUTH_PORT}   # For nuxt, so it knows
+      - PORT=3000
     depends_on:
       - auth
   
@@ -212,7 +211,6 @@ volumes:
   frontend_node_modules:  # Persistent volume for frontend dependencies
   frontend_nuxt_hidden:   # Persistent volume for frontend nuxt build
   frontend_output_hidden: # Persistent volume for frontend output
-  frontend_manual_node_modules:  # Persistent volume for frontend dependencies
   auth_node_modules:      # Persistent volume for auth dependencies
   # One volume per Postgres major version: data files cannot be opened by a different
   # major, so `make upgrade-postgres` dumps the old volume (mycelium_db, Postgres 16)

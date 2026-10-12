@@ -11,7 +11,6 @@ RUN rm /etc/nginx/conf.d/default.conf
 
 COPY conf/nginx.conf /etc/nginx/conf.d/
 COPY conf/api-locations.conf conf/app-locations.conf /etc/nginx/snippets/
-# COPY conf/index.html /var/www/html/
 COPY conf/custom_502.html /var/www/html/502.html
 
 EXPOSE 443

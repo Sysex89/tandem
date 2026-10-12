@@ -103,8 +103,6 @@ Requirements: Docker with Compose v2, GNU Make, and a [GitHub OAuth app](https:/
    AUTH_DB_USER=auth
    AUTH_DB_NAME=auth
    POSTGRES_ADDR=postgres
-   NOTES_ADDR=http://notes:3003
-   AUTH_PORT=3000
    GITHUB_CLIENT_ID=<your OAuth app client ID>
    GITHUB_CALLBACK_URL=https://localhost:8443/api/auth/login/github/callback
    WEBSITE_URL=https://localhost:8443

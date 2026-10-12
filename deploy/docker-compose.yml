@@ -21,7 +21,6 @@ services:
     <<: *defaults
     image: ghcr.io/sysex89/tandem-frontend:${TANDEM_TAG:-latest}
     environment:
-      NOTES_ADDR: http://notes:3003
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000

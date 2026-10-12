@@ -10,10 +10,9 @@ services:
     networks:
       - transcendence
     environment:
-      - NOTES_ADDR=${NOTES_ADDR}  # Internal SSR communication
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - PORT=${AUTH_PORT}
+      - PORT=3000
     depends_on:
       - auth
   
