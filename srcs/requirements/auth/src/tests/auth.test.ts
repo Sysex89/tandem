@@ -20,10 +20,9 @@ describe("Auth Routes (Integration)", () => {
 
 	// Setup: Build the server before running tests
 	beforeAll(async () => {
-		// Log the DB URL (sanitized) to verify we are targeting the right environment
-		// In Docker, this should look like postgres://... @postgres/...
-		// console.log("Test Environment DB:", databaseUrl.replace(/:[^:@]*@/, ":***@"));
-		console.log("Test Environment DB:", databaseUrl);
+		// Log the DB URL to verify we are targeting the right environment, with the
+		// password masked: test output ends up in CI logs.
+		console.log("Test Environment DB:", databaseUrl.replace(/\/\/([^:/]+):.*@/, "//$1:***@"));
 
 		const config: AppConfig = {
 			databaseUrl: databaseUrl, // Using the dev DB for now (Caution: this writes real data)
