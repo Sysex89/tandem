@@ -2,7 +2,13 @@
 
 ## How to run the tests
 
-From the `srcs` folder: `docker compose exec auth pnpm test`
+From the repository root, with `make dev` running (the production image has no dev dependencies):
+
+```bash
+docker compose -f srcs/docker-compose-dev.yml exec auth pnpm test --run
+```
+
+Add `-t "<test name>"` to run a single test. CI runs the same suite against a throwaway Postgres.
 
 ---
 
@@ -10,7 +16,7 @@ These integration tests verify the authentication flow from the outside in, trea
 
 ## Test Suite: `Auth Routes (Integration)`
 
-The tests run against the **running development database** (as configured in `docker-compose.yml`), but they are designed to be idempotent (repeatable) by cleaning up after themselves.
+The tests run against the **running development database** (`docker-compose-dev.yml`). They apply pending migrations first, so a fresh database works too, and they clean up after themselves, so they can be repeated.
 
 ### 1. Registration (`POST /register`)
 **Goal**: Verify a user can sign up.
@@ -89,6 +95,12 @@ The tests run against the **running development database** (as configured in `do
 - **Checks**:
     - **Status 401**.
 
+### 12. Concurrent Registration
+**Goal**: Confirm a race on the unique constraints is reported as a conflict, not a server error.
+- **Action**: Sends three identical `POST /register` requests at once.
+- **Checks**:
+    - Exactly one **200** and two **409**.
+
 ---
 
 ## Planned Tests
@@ -116,9 +128,9 @@ We use an `afterAll` hook to strictly remove the test data:
 ```typescript
 afterAll(async () => {
     // Hard delete the test user based on the specific test email
-    await server.db.execute(sql`DELETE FROM users WHERE email = 'bob@example.com'`);
+    await server.db.execute(sql`DELETE FROM users WHERE email IN ('bob@example.com', 'race@example.com')`);
     await server.close(); 
 });
 ```
 
-We also run this **before** the tests start (`beforeAll`), just in case a previous test run crashed halfway through and left "Bob" in the database.
+We also run this **before** the tests start (`beforeAll`), just in case a previous test run crashed halfway through and left its users in the database.

@@ -3,38 +3,18 @@
 An ultra-efficient Authentication service built with Fastify, TypeScript, and Drizzle ORM. It handles multi-strategy authentication (Local + GitHub OAuth2) and session management.
 
 ---
-## Database Migration Commands
+## Database migrations
 
-When you change the [schema.ts](src/db/schema.ts), you must synchronize the database. We use a two-step "Generate & Push" workflow.
+The schema lives in [src/db/schema.ts](src/db/schema.ts). After changing it, run `pnpm db:generate` inside the auth container to write a new SQL migration into `drizzle/`, and commit both. Migrations are applied automatically when the server starts. Full walkthrough: [Update the auth database schema](../../../DOCS/howto/auth-new-migration-howto.md).
 
-IF the change is not to the schema, but to the content of a row, drizzle sql file will need to be updated manually! Please see drizzle docs
-
-Example of what would go into a migration file in this situation: 
-`"UPDATE accounts SET provider_account_id = user_id::text WHERE provider = 'local';"`
-
-### 1. Generate Migration Files
-This looks at your TypeScript schema and creates the SQL equivalent in `./drizzle`.
-This must be done if this is the first time we run the program (if we dont have initial file yet)
-
-```bash
-pnpm db:generate
-```
-
-### 2. Push to Database
-This executes the SQL against your running Postgres container.
-```bash
-pnpm db:push
-```
-
-> **Note:** For development, `db:push` is the fastest way to sync. In a production environment, you would typically use `db:migrate` to run the versioned SQL files sequentially.
+For a change to row data rather than structure, generate an empty migration with `pnpm drizzle-kit generate --custom` and write the SQL by hand, for example:
+`UPDATE accounts SET provider_account_id = user_id::text WHERE provider = 'local';`
 
 ---
-## Routes & Auth Flow Diagrams
-*Scroll all the way to the end*
 
 ## Architectural Decisions
 
-We follow a strict Separation of Concerns to ensure the code is both robust and testable (using Vitest + Supertest).
+We follow a strict Separation of Concerns to ensure the code is both robust and testable (using Vitest and Fastify's `inject()`).
 
 ### 1. App Creation vs. Service Launch
 To test a server without actually binding to a network port (which is slow and port-conflicts), we split the logic:
@@ -51,10 +31,10 @@ In [src/tests/auth.test.ts](src/tests/auth.test.ts), we use the "recipe" `buildS
 - Multi-Strategy Auth: 
     - Local: Argon2 password hashing (slow/secure by design).
     - GitHub OAuth2: Dynamic callback construction using request headers.
-- Session Management: HMAC-signed cookies (@fastify/cookie).
+- Session Management: signed `session_id` cookie (@fastify/cookie) holding a session token stored in the `sessions` table.
+- Metrics: Prometheus counters and a histogram on `GET /metrics` (see `DOCS/reference/application-and-infrastructure-metrics.md`).
 - Database: Drizzle ORM targeting PostgreSQL.
 - Validation: Schema-based validation using TypeBox for every route.
-- Visual Logging: Custom test logging for debugging request/response flows.
 
 ---
 
@@ -100,7 +80,8 @@ graph TD
     %% 2. The Server-Side Fetch
     subgraph "Internal Docker Network"
         direction LR
-        Nuxt -- "3. GET http://auth:3000/me (Fetch Profile)" --> Auth
+        Nuxt -- "3. GET http://nginx:8081/api/auth/me (internal listener)" --> Nginx
+        Nginx -- "proxied to auth:3000/me" --> Auth
         Auth -- "4. JSON: { user: { id, email, role... } }" --> Nuxt
     end
 
@@ -117,7 +98,7 @@ We distinguish between **Access** (is the door open?) and **Identity** (who is w
 
 | Endpoint | Logic Type | Returns | Use Case |
 | :--- | :--- | :--- | :--- |
-| `GET /verify` | **Thin Gate** | `userId`, `sessionId` | Nginx `auth_request` / Fast Auth Checks. No DB Joins. |
+| `GET /verify` | **Thin Gate** | `X-User-Id` header + `{ authenticated, userId, ... }` | Nginx `auth_request` / Fast Auth Checks. No DB Joins. |
 | `GET /me` | **Thick Check** | Full `User` Object | Frontend Profile rendering / Admin Role checks. |
 
 ---
@@ -128,14 +109,17 @@ These are the routes exposed by the AUTH container on port `3000`.
 
 | Method | Endpoint | Purpose | Wiring Context |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/verify` | **Checks session cookie.** <br> **Status:** `200 OK`. <br> **Body:** `{ authenticated: true, session }`. <br> **Headers:** Sets `X-User-Id` for Nginx. | Used by Nginx `auth_request` directive. Fast session lookup. |
+| **GET** | `/verify` | **Checks session cookie.** <br> **Status:** `200 OK` or `401`. <br> **Headers:** Sets `X-User-Id` for Nginx. | Used by Nginx `auth_request` directive. Fast session lookup. |
 | **GET** | `/me` | **The Profile Identity.** <br> **Status:** `200 OK`. <br> **Body:** `{ authenticated: true, user: { id, loginName, email, role, ... } }`. | Used by Frontend (SSR & Client) to fetch full User information. |
 | **GET** | `/resolve` | **User Identity Resolution.** <br> **Accepts:** `?identifier=<email_or_login>` <br> **Returns:** `{ user: { id, loginName, imageURL } }` | Used by Share Flow to convert human identity to UUID. |
 | **POST** | `/logout` | **Clears session cookie.** | Called by frontend button. |
 | **POST** | `/login` | Accepts `{ identifier, password }`. Sets cookie. | Public form submission. |
 | **POST** | `/register` | Accepts `{ loginName, email, password }`. Sets cookie. | Public form submission. |
 | **GET** | `/login/github` | Redirects browser to GitHub. | Link from "Login with GitHub" button. |
-| **GET** | `/` | Health check / Redirect logic. | Default route. |
+| **GET** | `/login/github/callback` | Exchanges the OAuth code, finds or creates the user, sets the cookie, redirects to `WEBSITE_URL`. | GitHub redirects here (`GITHUB_CALLBACK_URL`). |
+| **GET** | `/` | Status: `{ service: "auth", status: "running" }`. | Health check. |
+| **GET** | `/ping` | `pong`. | Health check. |
+| **GET** | `/metrics` | Prometheus metrics. | Scraped by Prometheus; not routed by nginx. |
 | **GET** | `/users` | Returns all registered users (`id`, `loginName`, `imageURL`). | Used by frontend share dialog. |
 | **PATCH** | `/change-login` | Updates `loginName`. Accepts `{ loginName }`. | Profile settings. |
 | **PATCH** | `/change-email` | Updates `email`. Accepts `{ email }`. | Profile settings. |
@@ -148,28 +132,15 @@ These are the routes exposed by the AUTH container on port `3000`.
 
 ## Development Workflow
 
-### 1. Local Development (No Docker)
-If you have a local Postgres instance running:
-```bash
-pnpm install
-pnpm run dev
-```
+### 1. Development (With Docker)
+`make dev` (from the repository root) runs auth from `Dockerfile.dev`: the source is bind-mounted and `tsx watch` reloads on save.
 
-### 2. Development (With Docker)
-Uses Dockerfile.dev with tsx for high-speed hot-reloading.
+### 2. Running Tests
+Integration tests against the dev database; they apply migrations and clean up after themselves. The production image has no dev dependencies, so use the dev stack:
 ```bash
-docker compose up auth --build
+docker compose -f srcs/docker-compose-dev.yml exec auth pnpm test --run
 ```
-
-### 3. Running Tests
-Tests use a dedicated integration setup.
-```bash
-# Inside the container
-pnpm test
-
-# From the host (USE THIS WHILE RUNNING ENTIRE APPLICATION)
-docker compose exec auth pnpm test
-```
+What each test covers: [src/tests/TESTING.md](src/tests/TESTING.md). CI runs the same suite against a throwaway Postgres.
 
 ---
 
@@ -192,5 +163,6 @@ In a production environment, use the production Dockerfile (rather than Dockerfi
 - [src/index.ts](src/index.ts): Entry point (Config loading + Process handling).
 - [src/db/](src/db/): Database schema definitions and connection pooling.
 - [src/routes/](src/routes/): Route handlers split by domain (Auth, Sessions, User).
-- [src/lib/](src/lib/): Pure helpers and utility logic (URL construction, session helpers).
+- [src/lib/](src/lib/): Helpers for sessions (create, verify, revoke) and accounts.
+- [drizzle/](drizzle/): Generated SQL migrations and their snapshots.
 - [src/tests/](src/tests/): Integration and unit tests.

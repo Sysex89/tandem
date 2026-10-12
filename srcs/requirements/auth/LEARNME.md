@@ -57,13 +57,17 @@ export const myPlugin: FastifyPluginAsync = async (server) => {
 
 *   **[`src/routes/auth.ts`](./src/routes/auth.ts)**:
     *   Registers functionality for the *Login* flow.
-    *   **POST /register**: Handles local registration (hashing passwords with Argon2).
+    *   **POST /register** and **POST /login**: local accounts (hashing and verifying passwords with Argon2).
     *   **GET /login/github/callback**: The destination GitHub sends users to. It exchanges the code for a token, finds/creates the user in DB, and issues a session cookie.
-    
+
 *   **[`src/routes/sessions.ts`](./src/routes/sessions.ts)**:
     *   Registers functionality for *Verification*.
     *   **GET /verify**: Only returns 200 OK if the session cookie is valid.
     *   Used by Nginx (`auth_request`) to check if a request is allowed to pass through to protected services (like the Notes app).
+    *   **POST /logout**: deletes the session row and clears the cookie.
+
+*   **[`src/routes/user.ts`](./src/routes/user.ts)**:
+    *   The profile: **GET /me**, user lookup for sharing (`/users`, `/resolve`), changing login name, email, picture and password, the GDPR export and account deletion (which also asks the notes service to delete the user's notes).
 
 ---
 
@@ -113,10 +117,10 @@ This file exports `buildServer(config)`. It creates the application instance. Th
 4.  **Plugin Registration**:
     *   **Cookies**: Registered before auth, because auth needs to set cookies.
     *   **OAuth2**: Configured here.
-        *   *Special Note*: The `callbackUri` is defined as a **Function**, not a string. This allows us to dynamically handle requests from port `8080`, `8081`, or a production domain without changing configuration files.
+        *   The `callbackUri` comes from the `GITHUB_CALLBACK_URL` environment variable, and after login the user is redirected to `WEBSITE_URL`. Both are set per deployment (`https://localhost:8443` locally, the public domain for the hosted demo).
 
 5.  **Routes**:
-    Finally, we register our internal routes (`authRoutes`, `sessionRoutes`).
+    Finally, we register our internal routes (`authRoutes`, `sessionRoutes`, `userManagementRoutes`).
 
 ---
 
@@ -126,5 +130,5 @@ This file exports `buildServer(config)`. It creates the application instance. Th
 *   **[`src/app.ts`](./src/app.ts)** follows the recipe to mix the ingredients (Plugins, Database) into a cake (The Server Instance).
 *   **[`src/routes/`](./src/routes/)** are the slices of cake served to the user.
 
-*To see the specific routes available and visual diagrams of the authentication flow (SSR & Nginx), please consult the [Endpoints & Wiring Guide](./README.md#endpoints--wiring-guide-) section of the main README.*
+*To see the specific routes available and visual diagrams of the authentication flow (SSR & Nginx), please consult the [Endpoints & Wiring Guide](./README.md#endpoints--wiring-guide) section of the main README.*
 

@@ -38,11 +38,10 @@ export const providerEnum = pgEnum("provider_type", ["github", "local", "google"
 
 ### Step 2 — Generate the migration file
 
-From inside the `auth/` directory:
+Inside the auth container of the dev stack (`make dev`; the source is bind-mounted, so the files land in your checkout):
 
 ```bash
-cd srcs/requirements/auth
-npm run db:generate
+docker compose -f srcs/docker-compose-dev.yml exec auth pnpm db:generate
 ```
 
 This runs `drizzle-kit generate`. It will:
@@ -64,7 +63,7 @@ Both the schema change and the generated migration file must be committed togeth
 
 ### Step 4 — Apply it
 
-On next container startup (e.g. `make re` or `make up`), `migrate()` will detect the new file and run it automatically. You will see in the logs:
+On the next start of the auth service, `migrate()` will detect the new file and run it automatically. `tsx watch` does not restart for a new SQL file, so restart it yourself: `docker compose -f srcs/docker-compose-dev.yml restart auth` in dev, or `make rebuild service=auth` for the production image. You will see in the logs:
 
 ```
 Checking for pending migrations...
@@ -75,7 +74,7 @@ If you want to apply it without restarting the whole stack, you can run:
 
 ```bash
 # from inside the auth container or with a direct DB connection
-npm run db:push
+pnpm db:push
 ```
 
 > ⚠️ `db:push` bypasses the migration system entirely and pushes schema changes directly. It does **not** create a migration file. Use it only during local prototyping — never on a shared or production DB, and never as a substitute for `db:generate`.
@@ -114,7 +113,7 @@ When you add a migration it becomes `0001_something.sql`, then `0002_something.s
 On every startup, `buildServer()` calls Drizzle's `migrate()`:
 
 ```ts
-// src/app.ts lines 68–83
+// src/app.ts, inside buildServer()
 if (config.runMigrations !== false) {
     try {
         server.log.info("Checking for pending migrations...");
@@ -147,7 +146,7 @@ export interface AppConfig {
 }
 ```
 
-It is set in two places:
+It is set in two places, both to `true`. Passing `false` skips migrations, for a caller that manages the schema itself.
 
 **`src/index.ts` (production entry point):**
 ```ts
@@ -158,10 +157,9 @@ return {
 };
 ```
 
-**Test suite:**
+**Test suite** (`src/tests/auth.test.ts`):
 ```ts
-// Tests pass runMigrations: false to skip migration overhead
-// and rely on the test DB already being set up
+runMigrations: true, // No-op when already migrated; lets the suite run on a fresh database
 ```
 
 The `process.exit(1)` guard inside the catch block means: if a migration fails in production (e.g. a SQL conflict, DB unreachable), the server **refuses to start** rather than running against a stale schema. This is intentional — a mismatch between code and DB is worse than downtime.
@@ -182,7 +180,7 @@ export default defineConfig({
 });
 ```
 
-`drizzle-kit` (the CLI) reads this file when you run `db:generate` or `db:push`. It needs live DB access to introspect the current state — make sure the DB container is running when you run these commands.
+`drizzle-kit` (the CLI) reads this file when you run `db:generate` or `db:push`. `db:generate` only compares `schema.ts` with the snapshots in `drizzle/meta/`; `db:push` connects to the database (it imports the same connection settings as the server, so run it where those resolve, i.e. in the container).
 
 ---
 
